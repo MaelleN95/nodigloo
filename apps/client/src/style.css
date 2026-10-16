@@ -1,0 +1,266 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+:root {
+  font-family: 'Manrope', sans-serif;
+  color: #202923;
+  background: #f4f3ed;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  --ink: #202923;
+  --green: #386950;
+  --muted: #717a72;
+  --mono: 'DM Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background-image: radial-gradient(#b7b9ae 0.65px, transparent 0.65px);
+  background-size: 16px 16px;
+}
+
+.shell {
+  width: min(100% - 48px, 1120px);
+  min-height: 100vh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #d8d9d0;
+}
+
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.wordmark-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--green);
+  color: #fff;
+  font-size: 15px;
+}
+
+.phase-tag,
+.eyebrow,
+.footer-line {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+.phase-tag {
+  color: var(--muted);
+}
+
+.status-panel {
+  min-height: 580px;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 0.9fr;
+  align-items: center;
+  gap: 40px;
+  padding: 68px 4.5%;
+  background: rgba(250, 250, 246, 0.8);
+  border-inline: 1px solid #d8d9d0;
+  animation: arrive 650ms ease-out both;
+}
+
+.status-copy {
+  max-width: 510px;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--green);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #91aa57;
+  box-shadow: 0 0 0 4px #e8eddd;
+}
+
+h1 {
+  margin: 28px 0 18px;
+  font-size: clamp(42px, 7vw, 76px);
+  line-height: 1.04;
+  letter-spacing: 0;
+}
+
+.description {
+  max-width: 410px;
+  color: #606b62;
+  font-size: 16px;
+  line-height: 1.75;
+}
+
+.health-link {
+  width: fit-content;
+  min-height: 48px;
+  margin-top: 22px;
+  padding: 0 17px;
+  display: inline-flex;
+  align-items: center;
+  gap: 22px;
+  border-radius: 4px;
+  background: var(--green);
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.health-link:hover {
+  background: #294f3b;
+  transform: translateY(-2px);
+}
+.health-link:focus-visible {
+  outline: 3px solid #d68a48;
+  outline-offset: 3px;
+}
+
+.status-visual {
+  width: min(100%, 370px);
+  aspect-ratio: 1;
+  justify-self: center;
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.orbit {
+  position: absolute;
+  border: 1px solid #aab9a5;
+  border-radius: 50%;
+}
+.orbit-outer {
+  width: 100%;
+  height: 100%;
+}
+.orbit-inner {
+  width: 68%;
+  height: 68%;
+  border-color: #d0d7ca;
+}
+
+.center-mark {
+  width: 32%;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 28% 28% 28% 6%;
+  background: #386950;
+  color: white;
+  font-size: 56px;
+  font-weight: 800;
+  transform: rotate(-8deg);
+  box-shadow: 12px 14px 0 #dce3d3;
+}
+
+.node {
+  width: 18px;
+  height: 18px;
+  position: absolute;
+  border: 4px solid #f4f3ed;
+  border-radius: 50%;
+  background: #d68a48;
+}
+.node-top {
+  top: 7%;
+  left: 49%;
+}
+.node-right {
+  top: 48%;
+  right: 2%;
+  background: #91aa57;
+}
+.node-bottom {
+  bottom: 13%;
+  left: 18%;
+  background: #7291a0;
+}
+
+.footer-line {
+  min-height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: #747d73;
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 700px) {
+  .shell {
+    width: min(100% - 32px, 520px);
+  }
+  .topbar {
+    height: 70px;
+  }
+  .status-panel {
+    min-height: auto;
+    grid-template-columns: 1fr;
+    gap: 46px;
+    padding: 54px 8%;
+  }
+  h1 {
+    font-size: clamp(40px, 12vw, 58px);
+  }
+  .status-visual {
+    width: min(72vw, 270px);
+  }
+  .footer-line {
+    min-height: 56px;
+    flex-wrap: wrap;
+    justify-content: center;
+    font-size: 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
