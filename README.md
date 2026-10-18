@@ -15,6 +15,8 @@ Plateforme web de mini-jeux multijoueurs en temps réel. La V1 est un quiz de cu
 
 Le périmètre détaillé et les exclusions sont dans [docs/backlog-v1.md](docs/backlog-v1.md). Les jeux de rapidité, dessin, comptes, base de données et publication publique ne bloquent pas la V1.
 
+Les règles de travail (fonctionnalités, commits) sont décrites dans [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Prérequis
 
 - Git
