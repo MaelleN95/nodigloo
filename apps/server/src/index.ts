@@ -3,6 +3,10 @@ import cors from 'cors';
 import express, { type ErrorRequestHandler } from 'express';
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
+import type {
+  ClientToServerEvents,
+  ServerToClientEvents,
+} from '@nodigloo/shared';
 
 const port = Number(process.env.PORT ?? 3001);
 const allowedOrigins = (process.env.CLIENT_ORIGINS ?? 'http://localhost:8080')
@@ -24,7 +28,7 @@ const originAllowed = (
 
 const app = express();
 const httpServer = createServer(app);
-const io = new Server(httpServer, {
+const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
   cors: {
     origin: originAllowed,
     methods: ['GET', 'POST'],
