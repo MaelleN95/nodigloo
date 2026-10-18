@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run build --workspace @nodigloo/shared && npm run typecheck --workspaces --if-present"
   },
   "engines": {
     "node": ">=20"
