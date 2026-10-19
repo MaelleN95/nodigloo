@@ -61,6 +61,14 @@ docs/           Cadrage et suivi V1
 
 ## Configuration
 
-Les valeurs locales sont documentées dans `.env.example`. `CLIENT_ORIGINS` est la liste séparée par des virgules des origines autorisées par Express et Socket.IO. Aucun secret n'est requis pour exécuter le socle local.
+Les valeurs locales sont documentées dans `.env.example`. Le serveur lit son environnement une seule fois au démarrage, dans `apps/server/src/config.ts`.
+
+| Variable | Rôle | Défaut |
+| --- | --- | --- |
+| `PORT` | Port d'écoute du serveur. Une valeur invalide empêche le démarrage. | `3001` |
+| `CLIENT_ORIGINS` | Origines autorisées par Express et Socket.IO, séparées par des virgules. | `http://localhost:8080` |
+| `NODE_ENV` | Mode d'exécution : `development`, `production` ou `test`. | `development` |
+
+Aucun secret n'est requis pour exécuter le socle local.
 
 La cible de publication éventuelle (frontend statique et backend séparé) sera traitée après la validation locale de la V1; elle n'est pas nécessaire pour développer ni tester.
