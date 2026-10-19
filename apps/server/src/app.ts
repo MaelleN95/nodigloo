@@ -67,5 +67,14 @@ export const createApp = (config: Config) => {
 
   app.use(errorHandler);
 
+  // On ne logue que l'id technique du socket, jamais de pseudo ni de contenu
+  io.on('connection', (socket) => {
+    console.info(`Socket connected: ${socket.id}`);
+
+    socket.on('disconnect', (reason) => {
+      console.info(`Socket disconnected: ${socket.id} (${reason})`);
+    });
+  });
+
   return { app, httpServer, io };
 };
