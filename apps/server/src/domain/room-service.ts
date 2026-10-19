@@ -168,6 +168,50 @@ export class RoomService {
     return { room, player };
   }
 
+  // Retourne les codes des salles dont la liste de joueurs ou l'hôte a changé,
+  // pour que l'appelant puisse prévenir les joueurs restants.
+  // Une salle où tous les joueurs ont expiré est supprimée (et n'est pas retournée : personne à prévenir).
+  // Tant qu'un joueur d'une salle sans connectés est encore dans son délai, on ne touche à rien.
+  expireDisconnectedPlayers(): string[] {
+    const now = this.deps.now();
+    const changedRooms: string[] = [];
+
+    for (const room of this.rooms.values()) {
+      const players = [...room.players.values()];
+      const connected = players.filter((player) => player.socketId !== null);
+      const expired = players.filter(
+        (player) =>
+          player.disconnectedAt !== null &&
+          now - player.disconnectedAt > RECONNECT_GRACE_MS,
+      );
+
+      if (connected.length === 0) {
+        if (expired.length === players.length) {
+          this.rooms.delete(room.code);
+        }
+        continue;
+      }
+      if (expired.length === 0) {
+        continue;
+      }
+
+      for (const player of expired) {
+        room.players.delete(player.id);
+      }
+
+      // L'hôte n'est remplacé que s'il vient d'être retiré : le délai de grâce l'a protégé jusque-là
+      if (!room.players.has(room.hostId)) {
+        room.hostId = connected.reduce((oldest, player) =>
+          player.joinedAt < oldest.joinedAt ? player : oldest,
+        ).id;
+      }
+
+      changedRooms.push(room.code);
+    }
+
+    return changedRooms;
+  }
+
   private createPlayer(
     nickname: string,
     socketId: string,

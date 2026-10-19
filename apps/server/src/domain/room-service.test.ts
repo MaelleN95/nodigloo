@@ -379,3 +379,151 @@ describe('RoomService.resumeSession', () => {
     expect(room.abandonedAt).toBeNull();
   });
 });
+
+describe('RoomService.expireDisconnectedPlayers', () => {
+  it('retire un joueur absent depuis plus de 60 secondes, pas avant', () => {
+    const { service, clock } = makeServiceWithClock();
+    const { room } = service.createRoom('Alice', 'socket-1');
+    const { player: bob } = service.joinRoom('AAAAA', 'Bob', 'socket-2');
+    service.markDisconnected('AAAAA', bob.id, 'socket-2');
+
+    clock.time += 60_000;
+    expect(service.expireDisconnectedPlayers()).toEqual([]);
+    expect(room.players.has(bob.id)).toBe(true);
+
+    clock.time += 1;
+    expect(service.expireDisconnectedPlayers()).toEqual(['AAAAA']);
+    expect(room.players.has(bob.id)).toBe(false);
+    expect(room.players.size).toBe(1);
+  });
+
+  it('ne touche pas aux joueurs connectés', () => {
+    const { service, clock } = makeServiceWithClock();
+    const { room } = service.createRoom('Alice', 'socket-1');
+    service.joinRoom('AAAAA', 'Bob', 'socket-2');
+
+    clock.time += 10 * 60_000;
+
+    expect(service.expireDisconnectedPlayers()).toEqual([]);
+    expect(room.players.size).toBe(2);
+  });
+
+  it('ne change pas l\'hôte quand un autre joueur est retiré', () => {
+    const { service, clock } = makeServiceWithClock();
+    const { room, player: alice } = service.createRoom('Alice', 'socket-1');
+    const { player: bob } = service.joinRoom('AAAAA', 'Bob', 'socket-2');
+    service.markDisconnected('AAAAA', bob.id, 'socket-2');
+
+    clock.time += 61_000;
+    service.expireDisconnectedPlayers();
+
+    expect(room.hostId).toBe(alice.id);
+  });
+
+  it('garde l\'hôte déconnecté tant que son délai de grâce n\'est pas passé', () => {
+    const { service, clock } = makeServiceWithClock();
+    const { room, player: alice } = service.createRoom('Alice', 'socket-1');
+    service.joinRoom('AAAAA', 'Bob', 'socket-2');
+    service.markDisconnected('AAAAA', alice.id, 'socket-1');
+
+    clock.time += 59_000;
+    service.expireDisconnectedPlayers();
+
+    expect(room.hostId).toBe(alice.id);
+    expect(room.players.has(alice.id)).toBe(true);
+  });
+
+  it('transfère le rôle d\'hôte au joueur connecté le plus ancien après expiration', () => {
+    const { service, clock } = makeServiceWithClock();
+    const { room, player: alice } = service.createRoom('Alice', 'socket-1');
+    clock.time += 1000;
+    service.joinRoom('AAAAA', 'Bob', 'socket-2');
+    clock.time += 1000;
+    const { player: carl } = service.joinRoom('AAAAA', 'Carl', 'socket-3');
+    clock.time += 1000;
+    const { player: dina } = service.joinRoom('AAAAA', 'Dina', 'socket-4');
+
+    // Bob (le plus ancien après Alice) part aussi : il ne doit pas hériter du rôle
+    service.markDisconnected('AAAAA', alice.id, 'socket-1');
+    service.markDisconnected('AAAAA', 'p2', 'socket-2');
+    clock.time += 61_000;
+
+    expect(service.expireDisconnectedPlayers()).toEqual(['AAAAA']);
+    expect(room.hostId).toBe(carl.id);
+    expect(room.players.has(alice.id)).toBe(false);
+    expect(room.players.has(dina.id)).toBe(true);
+  });
+
+  it('un nouvel hôte le reste, même si un joueur plus ancien revient ensuite', () => {
+    const { service, clock } = makeServiceWithClock();
+    const { room, player: alice } = service.createRoom('Alice', 'socket-1');
+    clock.time += 1000;
+    const { player: bob } = service.joinRoom('AAAAA', 'Bob', 'socket-2');
+    clock.time += 1000;
+    const { player: carl } = service.joinRoom('AAAAA', 'Carl', 'socket-3');
+    clock.time += 1000;
+    const { player: dina } = service.joinRoom('AAAAA', 'Dina', 'socket-4');
+
+    // Alice (hôte) part, puis Bob 30 s plus tard : à l'expiration d'Alice, Bob est encore dans son délai
+    service.markDisconnected('AAAAA', alice.id, 'socket-1');
+    clock.time += 30_000;
+    service.markDisconnected('AAAAA', bob.id, 'socket-2');
+    clock.time += 31_000;
+    service.expireDisconnectedPlayers();
+    expect(room.hostId).toBe(carl.id);
+
+    // Bob revient : il est plus ancien que Carl, mais Carl reste hôte
+    service.resumeSession('AAAAA', bob.id, 'token-2', 'socket-9');
+    service.markDisconnected('AAAAA', dina.id, 'socket-4');
+    clock.time += 61_000;
+    service.expireDisconnectedPlayers();
+
+    expect(room.players.has(dina.id)).toBe(false);
+    expect(room.hostId).toBe(carl.id);
+  });
+
+  it('supprime la salle dès que tous ses joueurs ont expiré', () => {
+    const { service, clock } = makeServiceWithClock();
+    const { player: alice } = service.createRoom('Alice', 'socket-1');
+    const { player: bob } = service.joinRoom('AAAAA', 'Bob', 'socket-2');
+    service.markDisconnected('AAAAA', alice.id, 'socket-1');
+    service.markDisconnected('AAAAA', bob.id, 'socket-2');
+
+    clock.time += 60_000;
+    service.expireDisconnectedPlayers();
+    expect(service.getRoom('AAAAA')).toBeDefined();
+
+    clock.time += 1;
+    expect(service.expireDisconnectedPlayers()).toEqual([]);
+    expect(service.getRoom('AAAAA')).toBeUndefined();
+  });
+
+  it('garde une salle sans connectés tant qu\'un joueur est dans son délai', () => {
+    const { service, clock } = makeServiceWithClock();
+    const { player: alice } = service.createRoom('Alice', 'socket-1');
+    const { player: bob } = service.joinRoom('AAAAA', 'Bob', 'socket-2');
+    service.markDisconnected('AAAAA', alice.id, 'socket-1');
+    clock.time += 30_000;
+    service.markDisconnected('AAAAA', bob.id, 'socket-2');
+
+    clock.time += 31_000;
+    service.expireDisconnectedPlayers();
+
+    const room = service.getRoom('AAAAA');
+    expect(room?.players.size).toBe(2);
+    expect(room?.hostId).toBe(alice.id);
+  });
+
+  it('un joueur expiré ne peut plus reprendre sa session', () => {
+    const { service, clock } = makeServiceWithClock();
+    service.createRoom('Alice', 'socket-1');
+    const { player: bob } = service.joinRoom('AAAAA', 'Bob', 'socket-2');
+    service.markDisconnected('AAAAA', bob.id, 'socket-2');
+    clock.time += 61_000;
+    service.expireDisconnectedPlayers();
+
+    expect(() =>
+      service.resumeSession('AAAAA', bob.id, 'token-2', 'socket-9'),
+    ).toThrow(expect.objectContaining({ code: 'SESSION_EXPIRED' }));
+  });
+});
