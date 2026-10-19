@@ -21,8 +21,6 @@ export interface Room {
   // Map pour garder l'ordre d'arrivée et retrouver un joueur par son id
   players: Map<PlayerId, Player>;
   createdAt: number;
-  // moment où le dernier joueur connecté est parti, sert au nettoyage des salles abandonnées
-  abandonedAt: number | null;
 }
 
 export const toPlayerPublic = (player: Player): PlayerPublic => ({

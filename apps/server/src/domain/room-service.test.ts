@@ -27,7 +27,6 @@ describe('RoomService.createRoom', () => {
     expect(room.hostId).toBe(player.id);
     expect(room.players.size).toBe(1);
     expect(room.createdAt).toBe(5000);
-    expect(room.abandonedAt).toBeNull();
   });
 
   it('donne au joueur une identité distincte du socket, un token et un score à 0', () => {
@@ -191,15 +190,6 @@ describe('RoomService.joinRoom', () => {
     expect(room.players.size).toBe(1);
   });
 
-  it('remet à zéro le marqueur d\'abandon de la salle', () => {
-    const service = makeService();
-    const { room } = service.createRoom('Alice', 'socket-1');
-    room.abandonedAt = 1234;
-
-    service.joinRoom('AAAAA', 'Bob', 'socket-2');
-
-    expect(room.abandonedAt).toBeNull();
-  });
 });
 
 describe('RoomService.markDisconnected', () => {
@@ -213,7 +203,6 @@ describe('RoomService.markDisconnected', () => {
     expect(room.players.has(bob.id)).toBe(true);
     expect(bob.socketId).toBeNull();
     expect(bob.disconnectedAt).toBe(5000);
-    expect(room.abandonedAt).toBeNull();
   });
 
   it('ne change pas l\'hôte quand il se déconnecte', () => {
@@ -226,27 +215,14 @@ describe('RoomService.markDisconnected', () => {
     expect(room.hostId).toBe(alice.id);
   });
 
-  it('marque la salle comme abandonnée quand le dernier joueur connecté part', () => {
-    const service = makeService();
-    const { room, player: alice } = service.createRoom('Alice', 'socket-1');
-    const { player: bob } = service.joinRoom('AAAAA', 'Bob', 'socket-2');
-
-    service.markDisconnected('AAAAA', alice.id, 'socket-1');
-    expect(room.abandonedAt).toBeNull();
-
-    service.markDisconnected('AAAAA', bob.id, 'socket-2');
-    expect(room.abandonedAt).toBe(5000);
-  });
-
   it('ignore une déconnexion venant d\'un ancien socket', () => {
     const service = makeService();
-    const { room, player: alice } = service.createRoom('Alice', 'socket-1');
+    const { player: alice } = service.createRoom('Alice', 'socket-1');
 
     service.markDisconnected('AAAAA', alice.id, 'vieux-socket');
 
     expect(alice.socketId).toBe('socket-1');
     expect(alice.disconnectedAt).toBeNull();
-    expect(room.abandonedAt).toBeNull();
   });
 
   it('ne plante pas pour une salle ou un joueur inconnu', () => {
@@ -366,17 +342,6 @@ describe('RoomService.resumeSession', () => {
 
     expect(alice.socketId).toBe('socket-2');
     expect(alice.disconnectedAt).toBeNull();
-  });
-
-  it('remet la salle en état non abandonné', () => {
-    const { service } = makeServiceWithClock();
-    const { room, player: alice } = service.createRoom('Alice', 'socket-1');
-    service.markDisconnected('AAAAA', alice.id, 'socket-1');
-    expect(room.abandonedAt).toBe(1000);
-
-    service.resumeSession('AAAAA', alice.id, 'token-1', 'socket-9');
-
-    expect(room.abandonedAt).toBeNull();
   });
 });
 

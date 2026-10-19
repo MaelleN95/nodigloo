@@ -73,7 +73,6 @@ export class RoomService {
       hostId: host.id,
       players: new Map([[host.id, host]]),
       createdAt: now,
-      abandonedAt: null,
     };
     this.rooms.set(code, room);
 
@@ -108,7 +107,6 @@ export class RoomService {
 
     const player = this.createPlayer(nickname, socketId, this.deps.now());
     room.players.set(player.id, player);
-    room.abandonedAt = null;
 
     return { room, player };
   }
@@ -123,16 +121,8 @@ export class RoomService {
       return;
     }
 
-    const now = this.deps.now();
     player.socketId = null;
-    player.disconnectedAt = now;
-
-    const someoneConnected = [...room.players.values()].some(
-      (p) => p.socketId !== null,
-    );
-    if (!someoneConnected) {
-      room.abandonedAt = now;
-    }
+    player.disconnectedAt = this.deps.now();
   }
 
   resumeSession(
@@ -163,7 +153,6 @@ export class RoomService {
 
     player.socketId = socketId;
     player.disconnectedAt = null;
-    room.abandonedAt = null;
 
     return { room, player };
   }

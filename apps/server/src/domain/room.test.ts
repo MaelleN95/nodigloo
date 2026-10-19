@@ -18,7 +18,6 @@ const makeRoom = (players: Player[]): Room => ({
   hostId: players[0].id,
   players: new Map(players.map((player) => [player.id, player])),
   createdAt: 1000,
-  abandonedAt: null,
 });
 
 describe('toPlayerPublic', () => {
