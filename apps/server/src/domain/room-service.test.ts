@@ -262,3 +262,120 @@ describe('RoomService.markDisconnected', () => {
     expect(alice.socketId).toBe('socket-1');
   });
 });
+
+// Un service dont on contrôle l'heure : clock.time avance quand on le décide
+const makeServiceWithClock = () => {
+  const clock = { time: 1000 };
+  let playerCount = 0;
+  let tokenCount = 0;
+
+  const service = new RoomService({
+    now: () => clock.time,
+    generatePlayerId: () => `p${(playerCount += 1)}`,
+    generateReconnectToken: () => `token-${(tokenCount += 1)}`,
+    generateCode: () => 'AAAAA',
+  });
+
+  return { service, clock };
+};
+
+describe('RoomService.resumeSession', () => {
+  it('rend la place au joueur déconnecté avec son nouveau socket', () => {
+    const { service, clock } = makeServiceWithClock();
+    const { room, player: alice } = service.createRoom('Alice', 'socket-1');
+    service.markDisconnected('AAAAA', alice.id, 'socket-1');
+    clock.time += 30_000;
+
+    const result = service.resumeSession('AAAAA', alice.id, 'token-1', 'socket-9');
+
+    expect(result.room).toBe(room);
+    expect(result.player).toBe(alice);
+    expect(alice.id).toBe('p1');
+    expect(alice.socketId).toBe('socket-9');
+    expect(alice.disconnectedAt).toBeNull();
+    expect(room.players.size).toBe(1);
+  });
+
+  it('accepte le retour pile à la fin du délai de 60 secondes', () => {
+    const { service, clock } = makeServiceWithClock();
+    const { player: alice } = service.createRoom('Alice', 'socket-1');
+    service.markDisconnected('AAAAA', alice.id, 'socket-1');
+    clock.time += 60_000;
+
+    expect(() =>
+      service.resumeSession('AAAAA', alice.id, 'token-1', 'socket-9'),
+    ).not.toThrow();
+  });
+
+  it('refuse le retour après le délai de 60 secondes', () => {
+    const { service, clock } = makeServiceWithClock();
+    const { player: alice } = service.createRoom('Alice', 'socket-1');
+    service.markDisconnected('AAAAA', alice.id, 'socket-1');
+    clock.time += 60_001;
+
+    expect(() =>
+      service.resumeSession('AAAAA', alice.id, 'token-1', 'socket-9'),
+    ).toThrow(expect.objectContaining({ code: 'SESSION_EXPIRED' }));
+    expect(alice.socketId).toBeNull();
+  });
+
+  it('refuse un mauvais token et laisse le joueur déconnecté', () => {
+    const { service } = makeServiceWithClock();
+    const { player: alice } = service.createRoom('Alice', 'socket-1');
+    service.markDisconnected('AAAAA', alice.id, 'socket-1');
+
+    expect(() =>
+      service.resumeSession('AAAAA', alice.id, 'token-faux', 'socket-9'),
+    ).toThrow(expect.objectContaining({ code: 'SESSION_EXPIRED' }));
+    expect(() =>
+      service.resumeSession('AAAAA', alice.id, '', 'socket-9'),
+    ).toThrow(expect.objectContaining({ code: 'SESSION_EXPIRED' }));
+    expect(alice.socketId).toBeNull();
+  });
+
+  it('refuse le token d\'un autre joueur de la même salle', () => {
+    const { service } = makeServiceWithClock();
+    const { player: alice } = service.createRoom('Alice', 'socket-1');
+    service.joinRoom('AAAAA', 'Bob', 'socket-2');
+    service.markDisconnected('AAAAA', alice.id, 'socket-1');
+
+    expect(() =>
+      service.resumeSession('AAAAA', alice.id, 'token-2', 'socket-9'),
+    ).toThrow(expect.objectContaining({ code: 'SESSION_EXPIRED' }));
+  });
+
+  it('renvoie la même erreur pour une salle ou un joueur inconnu', () => {
+    const { service } = makeServiceWithClock();
+    const { player: alice } = service.createRoom('Alice', 'socket-1');
+
+    expect(() =>
+      service.resumeSession('XXXXX', alice.id, 'token-1', 'socket-9'),
+    ).toThrow(expect.objectContaining({ code: 'SESSION_EXPIRED' }));
+    expect(() =>
+      service.resumeSession('AAAAA', 'inconnu', 'token-1', 'socket-9'),
+    ).toThrow(expect.objectContaining({ code: 'SESSION_EXPIRED' }));
+  });
+
+  it('permet de reprendre sa place avec un nouveau socket alors que l\'ancien est encore ouvert', () => {
+    const { service } = makeServiceWithClock();
+    const { player: alice } = service.createRoom('Alice', 'socket-1');
+
+    service.resumeSession('AAAAA', alice.id, 'token-1', 'socket-2');
+    // l'ancien socket finit par se fermer : il ne doit pas déconnecter le nouveau
+    service.markDisconnected('AAAAA', alice.id, 'socket-1');
+
+    expect(alice.socketId).toBe('socket-2');
+    expect(alice.disconnectedAt).toBeNull();
+  });
+
+  it('remet la salle en état non abandonné', () => {
+    const { service } = makeServiceWithClock();
+    const { room, player: alice } = service.createRoom('Alice', 'socket-1');
+    service.markDisconnected('AAAAA', alice.id, 'socket-1');
+    expect(room.abandonedAt).toBe(1000);
+
+    service.resumeSession('AAAAA', alice.id, 'token-1', 'socket-9');
+
+    expect(room.abandonedAt).toBeNull();
+  });
+});

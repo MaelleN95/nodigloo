@@ -1,5 +1,5 @@
-import { MAX_PLAYERS } from '@nodigloo/shared';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { MAX_PLAYERS, RECONNECT_GRACE_MS } from '@nodigloo/shared';
+import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { DomainError } from './errors.js';
 import {
   isValidNickname,
@@ -33,6 +33,15 @@ export interface RoomMembership {
   room: Room;
   player: Player;
 }
+
+// Comparaison en temps constant : une comparaison classique s'arrête au premier caractère
+// différent, ce qui permet en théorie de deviner un token en mesurant le temps de réponse.
+const tokensMatch = (expected: string, received: string): boolean => {
+  const a = Buffer.from(expected);
+  const b = Buffer.from(received);
+
+  return a.length === b.length && timingSafeEqual(a, b);
+};
 
 export class RoomService {
   private readonly rooms = new Map<string, Room>();
@@ -124,6 +133,39 @@ export class RoomService {
     if (!someoneConnected) {
       room.abandonedAt = now;
     }
+  }
+
+  resumeSession(
+    code: string,
+    playerId: string,
+    reconnectToken: string,
+    socketId: string,
+  ): RoomMembership {
+    const expired = () =>
+      new DomainError('SESSION_EXPIRED', 'Session expirée ou invalide');
+    
+    const room = this.rooms.get(normalizeRoomCode(code));
+    const player = room?.players.get(playerId);
+    
+    // Même message pour tous les échecs : on ne dit pas à un inconnu si c'est le code,
+    // le joueur ou le token qui est faux.
+    if (!room || !player || !tokensMatch(player.reconnectToken, reconnectToken)) {
+      throw expired();
+    }
+
+    const now = this.deps.now();
+    const graceOver =
+      player.disconnectedAt !== null &&
+      now - player.disconnectedAt > RECONNECT_GRACE_MS;
+    if (graceOver) {
+      throw expired();
+    }
+
+    player.socketId = socketId;
+    player.disconnectedAt = null;
+    room.abandonedAt = null;
+
+    return { room, player };
   }
 
   private createPlayer(
