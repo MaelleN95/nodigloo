@@ -201,3 +201,64 @@ describe('RoomService.joinRoom', () => {
     expect(room.abandonedAt).toBeNull();
   });
 });
+
+describe('RoomService.markDisconnected', () => {
+  it('garde la place du joueur mais le marque comme déconnecté', () => {
+    const service = makeService();
+    const { room } = service.createRoom('Alice', 'socket-1');
+    const { player: bob } = service.joinRoom('AAAAA', 'Bob', 'socket-2');
+
+    service.markDisconnected('AAAAA', bob.id, 'socket-2');
+
+    expect(room.players.has(bob.id)).toBe(true);
+    expect(bob.socketId).toBeNull();
+    expect(bob.disconnectedAt).toBe(5000);
+    expect(room.abandonedAt).toBeNull();
+  });
+
+  it('ne change pas l\'hôte quand il se déconnecte', () => {
+    const service = makeService();
+    const { room, player: alice } = service.createRoom('Alice', 'socket-1');
+    service.joinRoom('AAAAA', 'Bob', 'socket-2');
+
+    service.markDisconnected('AAAAA', alice.id, 'socket-1');
+
+    expect(room.hostId).toBe(alice.id);
+  });
+
+  it('marque la salle comme abandonnée quand le dernier joueur connecté part', () => {
+    const service = makeService();
+    const { room, player: alice } = service.createRoom('Alice', 'socket-1');
+    const { player: bob } = service.joinRoom('AAAAA', 'Bob', 'socket-2');
+
+    service.markDisconnected('AAAAA', alice.id, 'socket-1');
+    expect(room.abandonedAt).toBeNull();
+
+    service.markDisconnected('AAAAA', bob.id, 'socket-2');
+    expect(room.abandonedAt).toBe(5000);
+  });
+
+  it('ignore une déconnexion venant d\'un ancien socket', () => {
+    const service = makeService();
+    const { room, player: alice } = service.createRoom('Alice', 'socket-1');
+
+    service.markDisconnected('AAAAA', alice.id, 'vieux-socket');
+
+    expect(alice.socketId).toBe('socket-1');
+    expect(alice.disconnectedAt).toBeNull();
+    expect(room.abandonedAt).toBeNull();
+  });
+
+  it('ne plante pas pour une salle ou un joueur inconnu', () => {
+    const service = makeService();
+    const { player: alice } = service.createRoom('Alice', 'socket-1');
+
+    expect(() =>
+      service.markDisconnected('XXXXX', alice.id, 'socket-1'),
+    ).not.toThrow();
+    expect(() =>
+      service.markDisconnected('AAAAA', 'inconnu', 'socket-1'),
+    ).not.toThrow();
+    expect(alice.socketId).toBe('socket-1');
+  });
+});

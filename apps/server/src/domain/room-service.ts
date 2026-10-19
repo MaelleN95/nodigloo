@@ -104,6 +104,28 @@ export class RoomService {
     return { room, player };
   }
 
+  // On passe le socketId de la connexion qui vient de se fermer : si le joueur s'est déjà
+  // reconnecté avec un autre socket, l'ancien socket qui se ferme en retard ne doit rien casser.
+  markDisconnected(code: string, playerId: string, socketId: string): void {
+    const room = this.rooms.get(code);
+    const player = room?.players.get(playerId);
+
+    if (!room || !player || player.socketId !== socketId) {
+      return;
+    }
+
+    const now = this.deps.now();
+    player.socketId = null;
+    player.disconnectedAt = now;
+
+    const someoneConnected = [...room.players.values()].some(
+      (p) => p.socketId !== null,
+    );
+    if (!someoneConnected) {
+      room.abandonedAt = now;
+    }
+  }
+
   private createPlayer(
     nickname: string,
     socketId: string,
