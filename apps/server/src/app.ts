@@ -7,6 +7,8 @@ import type {
   ServerToClientEvents,
 } from '@nodigloo/shared';
 import type { Config } from './config.js';
+import { RoomService } from './domain/room-service.js';
+import { registerRoomHandlers } from './socket/room-handlers.js';
 
 export class OriginNotAllowedError extends Error {
   constructor() {
@@ -67,9 +69,12 @@ export const createApp = (config: Config) => {
 
   app.use(errorHandler);
 
+  const roomService = new RoomService();
+
   // On ne logue que l'id technique du socket, jamais de pseudo ni de contenu
   io.on('connection', (socket) => {
     console.info(`Socket connected: ${socket.id}`);
+    registerRoomHandlers(socket, roomService);
 
     socket.on('disconnect', (reason) => {
       console.info(`Socket disconnected: ${socket.id} (${reason})`);
