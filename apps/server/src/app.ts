@@ -7,7 +7,10 @@ import type {
   ServerToClientEvents,
 } from '@nodigloo/shared';
 import type { Config } from './config.js';
-import { QuizService } from './domain/games/quiz/quiz-service.js';
+import {
+  QuizService,
+  type QuizServiceDeps,
+} from './domain/games/quiz/quiz-service.js';
 import { RoomService } from './domain/room-service.js';
 import { runRoomMaintenance } from './socket/room-maintenance.js';
 import { registerRoomHandlers } from './socket/room-handlers.js';
@@ -21,6 +24,7 @@ export class OriginNotAllowedError extends Error {
 export const createApp = (
   config: Config,
   roomService: RoomService = new RoomService(),
+  quizServiceDeps: Partial<QuizServiceDeps> = {},
 ) => {
   // Les requêtes sans origine (curl, healthcheck Docker) passent, les navigateurs doivent être dans la liste
   const originAllowed = (
@@ -74,19 +78,23 @@ export const createApp = (
 
   app.use(errorHandler);
 
-  const quizService = new QuizService(roomService, (roomCode, event) => {
-    switch (event.type) {
-      case 'question:started':
-        io.to(roomCode).emit('question:started', event.payload);
-        break;
-      case 'question:revealed':
-        io.to(roomCode).emit('question:revealed', event.payload);
-        break;
-      case 'game:finished':
-        io.to(roomCode).emit('game:finished', event.payload);
-        break;
-    }
-  });
+  const quizService = new QuizService(
+    roomService,
+    (roomCode, event) => {
+      switch (event.type) {
+        case 'question:started':
+          io.to(roomCode).emit('question:started', event.payload);
+          break;
+        case 'question:revealed':
+          io.to(roomCode).emit('question:revealed', event.payload);
+          break;
+        case 'game:finished':
+          io.to(roomCode).emit('game:finished', event.payload);
+          break;
+      }
+    },
+    quizServiceDeps,
+  );
 
   const maintenanceTimer = setInterval(
     () => runRoomMaintenance(io, roomService),

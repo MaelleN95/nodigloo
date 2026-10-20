@@ -5,12 +5,15 @@ import type {
   Ack,
   CreateRoomPayload,
   JoinedRoom,
+  QuestionReveal,
   QuestionStart,
+  RankingEntry,
   ResumeSessionPayload,
   RoomPublic,
 } from '@nodigloo/shared';
 import { createApp } from '../app.js';
 import type { Config } from '../config.js';
+import { QUESTION_BANK } from '../domain/games/quiz/question-bank.js';
 import { RoomService } from '../domain/room-service.js';
 import { runRoomMaintenance } from './room-maintenance.js';
 
@@ -26,11 +29,27 @@ describe('room Socket.IO handlers', () => {
   let port: number;
   let now: number;
   let roomService: RoomService;
+  let quizTimers: Array<{
+    callback: () => void;
+    delayMs: number;
+    cancelled: boolean;
+  }>;
 
   beforeEach(async () => {
     now = 1000;
+    quizTimers = [];
     roomService = new RoomService({ now: () => now });
-    app = createApp(config, roomService);
+    app = createApp(config, roomService, {
+      now: () => now,
+      random: () => 0,
+      schedule: (callback, delayMs) => {
+        const timer = { callback, delayMs, cancelled: false };
+        quizTimers.push(timer);
+        return () => {
+          timer.cancelled = true;
+        };
+      },
+    });
     await new Promise<void>((resolve, reject) => {
       app.httpServer.once('error', reject);
       app.httpServer.listen(0, '127.0.0.1', resolve);
@@ -68,6 +87,15 @@ describe('room Socket.IO handlers', () => {
       throw new Error(result.error.message);
     }
     return result.data;
+  };
+
+  const advanceQuizTimer = (): void => {
+    const timer = quizTimers.shift();
+    if (!timer) {
+      throw new Error('Aucun chronomètre de quiz');
+    }
+    now += timer.delayMs;
+    timer.callback();
   };
 
   it('crée une salle et ne renvoie le token qu’à son propriétaire', async () => {
@@ -382,5 +410,85 @@ describe('room Socket.IO handlers', () => {
       roomService.getRoom(created.room.code)?.players.get(joined.session.playerId)
         ?.score,
     ).toBe(0);
+  });
+
+  it('termine une partie Socket.IO complète et calcule les scores côté serveur', async () => {
+    const host = await connectClient();
+    const guest = await connectClient();
+    const created = requireSuccess(
+      await host.emitWithAck('room:create', { nickname: 'Alice' }),
+    );
+    const joined = requireSuccess(
+      await guest.emitWithAck('room:join', {
+        code: created.room.code,
+        nickname: 'Bob',
+      }),
+    );
+    const firstQuestion = new Promise<QuestionStart>((resolve) => {
+      guest.once('question:started', resolve);
+    });
+    const gameFinished = new Promise<{ ranking: RankingEntry[] }>((resolve) => {
+      host.once('game:finished', resolve);
+    });
+
+    await host.emitWithAck('game:start');
+    let currentQuestion = await firstQuestion;
+
+    for (let index = 0; index < 5; index += 1) {
+      const reveal = new Promise<QuestionReveal>((resolve) => {
+        guest.once('question:revealed', resolve);
+      });
+      const correctChoice = QUESTION_BANK.find(
+        (question) => question.id === currentQuestion.question.id,
+      )?.correctChoice;
+      if (correctChoice === undefined) {
+        throw new Error('La bonne réponse devrait exister');
+      }
+
+      expect(
+        await host.emitWithAck('quiz:answer:submit', {
+          questionId: currentQuestion.question.id,
+          choice: correctChoice,
+        }),
+      ).toEqual({ ok: true, data: undefined });
+      expect(
+        await guest.emitWithAck('quiz:answer:submit', {
+          questionId: currentQuestion.question.id,
+          choice: (correctChoice + 1) % currentQuestion.question.choices.length,
+        }),
+      ).toEqual({ ok: true, data: undefined });
+
+      let nextQuestion: Promise<QuestionStart> | undefined;
+      if (index < 4) {
+        nextQuestion = new Promise<QuestionStart>((resolve) => {
+          host.once('question:started', resolve);
+        });
+      }
+
+      advanceQuizTimer();
+      const revealed = await reveal;
+      expect(revealed.questionId).toBe(currentQuestion.question.id);
+      expect(revealed.scores[joined.session.playerId]).toBe(0);
+
+      if (nextQuestion) {
+        currentQuestion = await nextQuestion;
+      }
+    }
+
+    const finished = await gameFinished;
+
+    expect(
+      roomService.getRoom(created.room.code)?.players.get(created.session.playerId)
+        ?.score,
+    ).toBe(500);
+    expect(finished.ranking.map(({ playerId, score, rank }) => ({
+      playerId,
+      score,
+      rank,
+    }))).toEqual([
+      { playerId: created.session.playerId, score: 500, rank: 1 },
+      { playerId: joined.session.playerId, score: 0, rank: 2 },
+    ]);
+    expect(roomService.getRoom(created.room.code)?.status).toBe('results');
   });
 });
