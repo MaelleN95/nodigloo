@@ -192,6 +192,64 @@ describe('RoomService.joinRoom', () => {
 
 });
 
+describe('RoomService.startGame', () => {
+  it('passe la salle en partie quand l’hôte a au moins deux joueurs connectés', () => {
+    const service = makeService();
+    const { room, player: alice } = service.createRoom('Alice', 'socket-1');
+    service.joinRoom('AAAAA', 'Bob', 'socket-2');
+
+    const startedRoom = service.startGame(room.code, alice.id, 'socket-1');
+
+    expect(startedRoom.status).toBe('playing');
+  });
+
+  it('refuse le lancement par un joueur qui n’est pas l’hôte', () => {
+    const service = makeService();
+    const { room } = service.createRoom('Alice', 'socket-1');
+    const { player: bob } = service.joinRoom('AAAAA', 'Bob', 'socket-2');
+
+    expect(() => service.startGame(room.code, bob.id, 'socket-2')).toThrow(
+      expect.objectContaining({ code: 'FORBIDDEN' }),
+    );
+    expect(room.status).toBe('lobby');
+  });
+
+  it('compte seulement les joueurs connectés', () => {
+    const service = makeService();
+    const { room, player: alice } = service.createRoom('Alice', 'socket-1');
+    const { player: bob } = service.joinRoom('AAAAA', 'Bob', 'socket-2');
+    service.markDisconnected(room.code, bob.id, 'socket-2');
+
+    expect(() => service.startGame(room.code, alice.id, 'socket-1')).toThrow(
+      expect.objectContaining({ code: 'NOT_ENOUGH_PLAYERS' }),
+    );
+    expect(room.status).toBe('lobby');
+  });
+
+  it('refuse une seconde tentative après le démarrage', () => {
+    const service = makeService();
+    const { room, player: alice } = service.createRoom('Alice', 'socket-1');
+    service.joinRoom('AAAAA', 'Bob', 'socket-2');
+    service.startGame(room.code, alice.id, 'socket-1');
+
+    expect(() => service.startGame(room.code, alice.id, 'socket-1')).toThrow(
+      expect.objectContaining({ code: 'GAME_ALREADY_STARTED' }),
+    );
+  });
+
+  it('refuse un ancien socket de l’hôte après sa reconnexion', () => {
+    const service = makeService();
+    const { room, player: alice } = service.createRoom('Alice', 'socket-1');
+    service.joinRoom('AAAAA', 'Bob', 'socket-2');
+    service.resumeSession(room.code, alice.id, 'token-1', 'socket-3');
+
+    expect(() => service.startGame(room.code, alice.id, 'socket-1')).toThrow(
+      expect.objectContaining({ code: 'FORBIDDEN' }),
+    );
+    expect(room.status).toBe('lobby');
+  });
+});
+
 describe('RoomService.markDisconnected', () => {
   it('garde la place du joueur mais le marque comme déconnecté', () => {
     const service = makeService();

@@ -253,4 +253,57 @@ describe('room Socket.IO handlers', () => {
 
     expect(roomService.getRoom(room.code)).toBeUndefined();
   });
+
+  it('permet à l’hôte de démarrer avec deux joueurs et diffuse le nouvel état', async () => {
+    const host = await connectClient();
+    const guest = await connectClient();
+    const created = requireSuccess(
+      await host.emitWithAck('room:create', { nickname: 'Alice' }),
+    );
+    await guest.emitWithAck('room:join', {
+      code: created.room.code,
+      nickname: 'Bob',
+    });
+    const roomUpdated = new Promise<RoomPublic>((resolve) => {
+      host.once('room:updated', resolve);
+    });
+
+    const result = await host.emitWithAck('game:start');
+    const updated = await roomUpdated;
+
+    expect(result).toEqual({ ok: true, data: undefined });
+    expect(updated.status).toBe('playing');
+  });
+
+  it('refuse le démarrage par un non-hôte', async () => {
+    const host = await connectClient();
+    const guest = await connectClient();
+    const created = requireSuccess(
+      await host.emitWithAck('room:create', { nickname: 'Alice' }),
+    );
+    await guest.emitWithAck('room:join', {
+      code: created.room.code,
+      nickname: 'Bob',
+    });
+
+    const result = await guest.emitWithAck('game:start');
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: 'FORBIDDEN' },
+    });
+    expect(roomService.getRoom(created.room.code)?.status).toBe('lobby');
+  });
+
+  it('refuse le démarrage avec un seul joueur connecté', async () => {
+    const host = await connectClient();
+    await host.emitWithAck('room:create', { nickname: 'Alice' });
+
+    const result = await host.emitWithAck('game:start');
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: 'NOT_ENOUGH_PLAYERS' },
+    });
+  });
 });

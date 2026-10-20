@@ -1,4 +1,4 @@
-import { MAX_PLAYERS, RECONNECT_GRACE_MS } from '@nodigloo/shared';
+import { MAX_PLAYERS, MIN_PLAYERS, RECONNECT_GRACE_MS } from '@nodigloo/shared';
 import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { DomainError } from './errors.js';
 import {
@@ -109,6 +109,42 @@ export class RoomService {
     room.players.set(player.id, player);
 
     return { room, player };
+  }
+
+  startGame(code: string, playerId: string, socketId: string): Room {
+    const room = this.rooms.get(normalizeRoomCode(code));
+    if (!room) {
+      throw new DomainError('ROOM_NOT_FOUND', 'Salle introuvable');
+    }
+
+    const player = room.players.get(playerId);
+    if (
+      room.hostId !== playerId ||
+      !player ||
+      player.socketId !== socketId
+    ) {
+      throw new DomainError(
+        'FORBIDDEN',
+        'Seul l’hôte connecté peut lancer la partie',
+      );
+    }
+
+    if (room.status !== 'lobby') {
+      throw new DomainError('GAME_ALREADY_STARTED', 'La partie a déjà commencé');
+    }
+
+    const connectedPlayers = [...room.players.values()].filter(
+      (roomPlayer) => roomPlayer.socketId !== null,
+    ).length;
+    if (connectedPlayers < MIN_PLAYERS) {
+      throw new DomainError(
+        'NOT_ENOUGH_PLAYERS',
+        'Il faut au moins deux joueurs connectés',
+      );
+    }
+
+    room.status = 'playing';
+    return room;
   }
 
   // On passe le socketId de la connexion qui vient de se fermer : si le joueur s'est déjà

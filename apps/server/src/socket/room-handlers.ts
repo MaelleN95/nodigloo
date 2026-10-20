@@ -18,7 +18,10 @@ import {
 type ClientSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 type JoinedRoomAck = (result: Ack<JoinedRoom>) => void;
 
-const reportError = (ack: JoinedRoomAck, error: unknown): void => {
+const reportError = <T>(
+  ack: (result: Ack<T>) => void,
+  error: unknown,
+): void => {
   if (!(error instanceof DomainError)) {
     console.error(
       'Socket event failed',
@@ -142,6 +145,29 @@ export const registerRoomHandlers = (
           },
         },
       });
+    } catch (error) {
+      reportError(ack, error);
+    }
+  });
+
+  socket.on('game:start', (ack) => {
+    if (typeof ack !== 'function') {
+      console.warn(`Missing acknowledgement for game:start (${socket.id})`);
+      return;
+    }
+
+    try {
+      if (!membership) {
+        throw new DomainError('FORBIDDEN', 'Action réservée à l’hôte');
+      }
+
+      const room = roomService.startGame(
+        membership.roomCode,
+        membership.playerId,
+        socket.id,
+      );
+      socket.nsp.to(room.code).emit('room:updated', toRoomPublic(room));
+      ack({ ok: true, data: undefined });
     } catch (error) {
       reportError(ack, error);
     }
