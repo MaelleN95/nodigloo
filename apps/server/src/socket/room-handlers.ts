@@ -6,7 +6,7 @@ import type {
 } from '@nodigloo/shared';
 import type { Socket } from 'socket.io';
 import { DomainError, toAppError } from '../domain/errors.js';
-import { GameService } from '../domain/game-service.js';
+import { QuizService } from '../domain/games/quiz/quiz-service.js';
 import { RoomService } from '../domain/room-service.js';
 import { toRoomPublic } from '../domain/room.js';
 import {
@@ -14,6 +14,7 @@ import {
   joinRoomSchema,
   parsePayload,
   resumeSessionSchema,
+  submitQuizAnswerSchema,
 } from './payloads.js';
 
 type ClientSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
@@ -36,7 +37,7 @@ const reportError = <T>(
 export const registerRoomHandlers = (
   socket: ClientSocket,
   roomService: RoomService,
-  gameService: GameService,
+  quizService: QuizService,
 ): void => {
   let membership: { roomCode: string; playerId: string } | undefined;
 
@@ -148,7 +149,7 @@ export const registerRoomHandlers = (
         },
       });
       if (room.status === 'playing') {
-        const currentQuestion = gameService.getCurrentQuestion(room.code);
+        const currentQuestion = quizService.getCurrentQuestion(room.code);
         if (currentQuestion) {
           socket.emit('question:started', currentQuestion);
         }
@@ -174,9 +175,42 @@ export const registerRoomHandlers = (
         membership.playerId,
         socket.id,
       );
-      const firstQuestion = gameService.startGame(room);
+      const firstQuestion = quizService.startGame(room);
       socket.nsp.to(room.code).emit('room:updated', toRoomPublic(room));
       socket.nsp.to(room.code).emit('question:started', firstQuestion);
+      ack({ ok: true, data: undefined });
+    } catch (error) {
+      reportError(ack, error);
+    }
+  });
+
+  socket.on('quiz:answer:submit', (payload, ack) => {
+    if (typeof ack !== 'function') {
+      console.warn(
+        `Missing acknowledgement for quiz:answer:submit (${socket.id})`,
+      );
+      return;
+    }
+
+    try {
+      const { questionId, choice } = parsePayload(
+        submitQuizAnswerSchema,
+        payload,
+      );
+      if (!membership) {
+        throw new DomainError(
+          'FORBIDDEN',
+          'Action réservée aux joueurs de la salle',
+        );
+      }
+
+      quizService.submitAnswer(
+        membership.roomCode,
+        membership.playerId,
+        socket.id,
+        questionId,
+        choice,
+      );
       ack({ ok: true, data: undefined });
     } catch (error) {
       reportError(ack, error);

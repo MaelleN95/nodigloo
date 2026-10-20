@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CHOICES_PER_QUESTION } from '@nodigloo/shared';
 import { DomainError } from '../domain/errors.js';
 
 // Ici on vérifie seulement la forme (bon type, taille raisonnable).
@@ -14,6 +15,15 @@ export const resumeSessionSchema = z.object({
   code: roomCode,
   playerId: z.string().max(100),
   reconnectToken: z.string().max(200),
+});
+
+export const submitQuizAnswerSchema = z.object({
+  questionId: z.string().min(1).max(100),
+  choice: z
+    .number()
+    .int()
+    .min(0)
+    .max(CHOICES_PER_QUESTION - 1),
 });
 
 // Un client peut envoyer n'importe quoi : on ne fait jamais confiance au type annoncé

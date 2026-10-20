@@ -1,4 +1,5 @@
 import {
+  type ChoiceIndex,
   POINTS_PER_CORRECT_ANSWER,
   QUESTIONS_PER_GAME,
   QUESTION_DURATION_MS,
@@ -6,17 +7,17 @@ import {
   type QuestionStart,
   type RankingEntry,
 } from '@nodigloo/shared';
-import { DomainError } from './errors.js';
-import type { Room } from './room.js';
+import { DomainError } from '../../errors.js';
+import type { Room } from '../../room.js';
 import { QUESTION_BANK, type QuizQuestion } from './question-bank.js';
-import { RoomService } from './room-service.js';
+import { RoomService } from '../../room-service.js';
 
-export type GameEvent =
+export type QuizEvent =
   | { type: 'question:started'; payload: QuestionStart }
   | { type: 'question:revealed'; payload: QuestionReveal }
   | { type: 'game:finished'; payload: { ranking: RankingEntry[] } };
 
-export interface GameServiceDeps {
+export interface QuizServiceDeps {
   now: () => number;
   random: () => number;
   schedule: (callback: () => void, delayMs: number) => () => void;
@@ -30,7 +31,7 @@ interface ActiveGame {
   cancelTimer: () => void;
 }
 
-const defaultDeps: GameServiceDeps = {
+const defaultDeps: QuizServiceDeps = {
   now: () => Date.now(),
   random: () => Math.random(),
   schedule: (callback, delayMs) => {
@@ -79,14 +80,14 @@ const getRanking = (room: Room): RankingEntry[] => {
   return ranking;
 };
 
-export class GameService {
+export class QuizService {
   private readonly games = new Map<string, ActiveGame>();
-  private readonly deps: GameServiceDeps;
+  private readonly deps: QuizServiceDeps;
 
   constructor(
     private readonly roomService: RoomService,
-    private readonly emit: (roomCode: string, event: GameEvent) => void,
-    deps: Partial<GameServiceDeps> = {},
+    private readonly emit: (roomCode: string, event: QuizEvent) => void,
+    deps: Partial<QuizServiceDeps> = {},
   ) {
     this.deps = { ...defaultDeps, ...deps };
   }
@@ -116,6 +117,54 @@ export class GameService {
 
   getCurrentQuestion(roomCode: string): QuestionStart | undefined {
     return this.games.get(roomCode)?.currentQuestion;
+  }
+
+  submitAnswer(
+    roomCode: string,
+    playerId: string,
+    socketId: string,
+    questionId: string,
+    choice: ChoiceIndex,
+  ): void {
+    const room = this.roomService.getRoom(roomCode);
+    const game = this.games.get(roomCode);
+    const player = room?.players.get(playerId);
+    const currentQuestion = game?.currentQuestion;
+
+    if (!room || room.status !== 'playing' || !game || !currentQuestion) {
+      throw new DomainError(
+        'ANSWER_TOO_LATE',
+        'La question n’accepte plus de réponse',
+      );
+    }
+
+    if (!player || player.socketId !== socketId) {
+      throw new DomainError(
+        'FORBIDDEN',
+        'Cette connexion ne correspond pas au joueur',
+      );
+    }
+
+    if (this.deps.now() >= currentQuestion.endsAt) {
+      this.revealQuestion(roomCode);
+      throw new DomainError('ANSWER_TOO_LATE', 'Le délai de réponse est dépassé');
+    }
+
+    if (currentQuestion.question.id !== questionId) {
+      throw new DomainError(
+        'ANSWER_TOO_LATE',
+        'Cette question n’accepte plus de réponse',
+      );
+    }
+
+    if (game.answers.has(playerId)) {
+      throw new DomainError(
+        'ALREADY_ANSWERED',
+        'Tu as déjà répondu à cette question',
+      );
+    }
+
+    game.answers.set(playerId, choice);
   }
 
   private startQuestion(roomCode: string, game: ActiveGame): QuestionStart {
@@ -150,6 +199,8 @@ export class GameService {
       return;
     }
 
+    game.cancelTimer();
+    game.cancelTimer = () => undefined;
     const question = game.questions[game.questionIndex];
     for (const [playerId, choice] of game.answers) {
       if (choice === question.correctChoice) {

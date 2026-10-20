@@ -350,4 +350,37 @@ describe('room Socket.IO handlers', () => {
     expect(resumed.room.status).toBe('playing');
     expect(questionAfterResume).toEqual(currentQuestion);
   });
+
+  it('accepte une réponse et refuse une seconde réponse à la même question', async () => {
+    const host = await connectClient();
+    const guest = await connectClient();
+    const created = requireSuccess(
+      await host.emitWithAck('room:create', { nickname: 'Alice' }),
+    );
+    const joined = requireSuccess(
+      await guest.emitWithAck('room:join', {
+        code: created.room.code,
+        nickname: 'Bob',
+      }),
+    );
+    const questionStarted = new Promise<QuestionStart>((resolve) => {
+      guest.once('question:started', resolve);
+    });
+    await host.emitWithAck('game:start');
+    const question = await questionStarted;
+    const answer = { questionId: question.question.id, choice: 0 };
+
+    const accepted = await guest.emitWithAck('quiz:answer:submit', answer);
+    const duplicate = await guest.emitWithAck('quiz:answer:submit', answer);
+
+    expect(accepted).toEqual({ ok: true, data: undefined });
+    expect(duplicate).toMatchObject({
+      ok: false,
+      error: { code: 'ALREADY_ANSWERED' },
+    });
+    expect(
+      roomService.getRoom(created.room.code)?.players.get(joined.session.playerId)
+        ?.score,
+    ).toBe(0);
+  });
 });

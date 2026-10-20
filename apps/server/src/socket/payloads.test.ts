@@ -4,6 +4,7 @@ import {
   joinRoomSchema,
   parsePayload,
   resumeSessionSchema,
+  submitQuizAnswerSchema,
 } from './payloads.js';
 
 const invalidPayload = expect.objectContaining({ code: 'INVALID_PAYLOAD' });
@@ -49,6 +50,33 @@ describe('parsePayload', () => {
         playerId: 'p1',
         reconnectToken: 123,
       }),
+    ).toThrow(invalidPayload);
+  });
+
+  it('accepte un choix de quiz valide', () => {
+    expect(
+      parsePayload(submitQuizAnswerSchema, {
+        questionId: 'q01',
+        choice: 3,
+      }),
+    ).toEqual({ questionId: 'q01', choice: 3 });
+  });
+
+  it.each([-1, 4, 1.5, '1', null])(
+    'refuse un choix de quiz invalide : %p',
+    (choice) => {
+      expect(() =>
+        parsePayload(submitQuizAnswerSchema, {
+          questionId: 'q01',
+          choice,
+        }),
+      ).toThrow(invalidPayload);
+    },
+  );
+
+  it('refuse un identifiant de question vide', () => {
+    expect(() =>
+      parsePayload(submitQuizAnswerSchema, { questionId: '', choice: 0 }),
     ).toThrow(invalidPayload);
   });
 

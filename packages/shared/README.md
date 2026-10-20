@@ -20,7 +20,7 @@ Client vers serveur (chacun répond par un `Ack` : `{ ok: true, data }` ou `{ ok
 - `room:join` : rejoint une salle avec un code et un pseudo
 - `session:resume` : reprend sa place avec `playerId` et `reconnectToken`
 - `game:start` : lance la partie (hôte uniquement)
-- `answer:submit` : envoie un choix pour la question en cours
+- `quiz:answer:submit` : envoie un choix pour la question de quiz en cours
 
 Serveur vers client : `room:updated`, `question:started`, `question:revealed`, `game:finished`.
 

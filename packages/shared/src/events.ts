@@ -39,7 +39,7 @@ export interface ResumeSessionPayload {
   reconnectToken: string;
 }
 
-export interface SubmitAnswerPayload {
+export interface SubmitQuizAnswerPayload {
   questionId: string;
   choice: ChoiceIndex;
 }
@@ -58,8 +58,8 @@ export interface ClientToServerEvents {
     ack: (result: Ack<JoinedRoom>) => void,
   ) => void;
   'game:start': (ack: (result: Ack) => void) => void;
-  'answer:submit': (
-    payload: SubmitAnswerPayload,
+  'quiz:answer:submit': (
+    payload: SubmitQuizAnswerPayload,
     ack: (result: Ack) => void,
   ) => void;
 }
