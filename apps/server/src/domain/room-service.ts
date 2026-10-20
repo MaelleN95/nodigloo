@@ -52,7 +52,7 @@ export class RoomService {
   }
 
   getRoom(code: string): Room | undefined {
-    return this.rooms.get(code);
+    return this.rooms.get(normalizeRoomCode(code));
   }
 
   createRoom(nickname: string, socketId: string): RoomMembership {

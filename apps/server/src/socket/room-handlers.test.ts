@@ -5,6 +5,7 @@ import type {
   Ack,
   CreateRoomPayload,
   JoinedRoom,
+  ResumeSessionPayload,
   RoomPublic,
 } from '@nodigloo/shared';
 import { createApp } from '../app.js';
@@ -130,6 +131,79 @@ describe('room Socket.IO handlers', () => {
     const result = await client.emitWithAck('room:create', {
       nickname: 42,
     } as unknown as CreateRoomPayload);
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_PAYLOAD' },
+    });
+    expect(client.connected).toBe(true);
+  });
+
+  it('reprend une session et ferme l’ancienne connexion du joueur', async () => {
+    const original = await connectClient();
+    const observer = await connectClient();
+    const created = requireSuccess(
+      await original.emitWithAck('room:create', { nickname: 'Alice' }),
+    );
+    await observer.emitWithAck('room:join', {
+      code: created.room.code,
+      nickname: 'Bob',
+    });
+
+    const resumedClient = await connectClient();
+    const originalDisconnected = new Promise<void>((resolve) => {
+      original.once('disconnect', () => resolve());
+    });
+    const roomUpdated = new Promise<RoomPublic>((resolve) => {
+      observer.once('room:updated', resolve);
+    });
+    const resumed = requireSuccess(
+      await resumedClient.emitWithAck('session:resume', {
+        code: created.room.code,
+        playerId: created.session.playerId,
+        reconnectToken: created.session.reconnectToken,
+      }),
+    );
+
+    await originalDisconnected;
+    const broadcast = await roomUpdated;
+
+    expect(resumed.session).toEqual(created.session);
+    expect(resumed.room.players.find((player) => player.nickname === 'Alice'))
+      .toMatchObject({ connected: true });
+    expect(broadcast).toEqual(resumed.room);
+    expect(original.connected).toBe(false);
+  });
+
+  it('refuse une session avec un token invalide', async () => {
+    const original = await connectClient();
+    const created = requireSuccess(
+      await original.emitWithAck('room:create', { nickname: 'Alice' }),
+    );
+    const resumedClient = await connectClient();
+    const result = await resumedClient.emitWithAck('session:resume', {
+      code: created.room.code,
+      playerId: created.session.playerId,
+      reconnectToken: 'token-invalide',
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: 'SESSION_EXPIRED',
+        message: 'Session expirée ou invalide',
+      },
+    });
+    expect(original.connected).toBe(true);
+  });
+
+  it('refuse un payload de reprise mal formé', async () => {
+    const client = await connectClient();
+    const result = await client.emitWithAck('session:resume', {
+      code: 'ABCDE',
+      playerId: 'p1',
+      reconnectToken: 123,
+    } as unknown as ResumeSessionPayload);
 
     expect(result).toMatchObject({
       ok: false,

@@ -12,6 +12,7 @@ import {
   createRoomSchema,
   joinRoomSchema,
   parsePayload,
+  resumeSessionSchema,
 } from './payloads.js';
 
 type ClientSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
@@ -32,6 +33,18 @@ export const registerRoomHandlers = (
   socket: ClientSocket,
   roomService: RoomService,
 ): void => {
+  let membership: { roomCode: string; playerId: string } | undefined;
+
+  socket.on('disconnect', () => {
+    if (membership) {
+      roomService.markDisconnected(
+        membership.roomCode,
+        membership.playerId,
+        socket.id,
+      );
+    }
+  });
+
   socket.on('room:create', async (payload, ack) => {
     if (typeof ack !== 'function') {
       console.warn(`Missing acknowledgement for room:create (${socket.id})`);
@@ -43,6 +56,7 @@ export const registerRoomHandlers = (
       const { room, player } = roomService.createRoom(nickname, socket.id);
 
       await socket.join(room.code);
+      membership = { roomCode: room.code, playerId: player.id };
       ack({
         ok: true,
         data: {
@@ -73,6 +87,50 @@ export const registerRoomHandlers = (
       );
 
       await socket.join(room.code);
+      membership = { roomCode: room.code, playerId: player.id };
+      socket.to(room.code).emit('room:updated', toRoomPublic(room));
+      ack({
+        ok: true,
+        data: {
+          room: toRoomPublic(room),
+          session: {
+            playerId: player.id,
+            reconnectToken: player.reconnectToken,
+          },
+        },
+      });
+    } catch (error) {
+      reportError(ack, error);
+    }
+  });
+
+  socket.on('session:resume', async (payload, ack) => {
+    if (typeof ack !== 'function') {
+      console.warn(`Missing acknowledgement for session:resume (${socket.id})`);
+      return;
+    }
+
+    try {
+      const { code, playerId, reconnectToken } = parsePayload(
+        resumeSessionSchema,
+        payload,
+      );
+      const previousSocketId = roomService
+        .getRoom(code)
+        ?.players.get(playerId)?.socketId;
+      const { room, player } = roomService.resumeSession(
+        code,
+        playerId,
+        reconnectToken,
+        socket.id,
+      );
+
+      await socket.join(room.code);
+      membership = { roomCode: room.code, playerId: player.id };
+      if (previousSocketId && previousSocketId !== socket.id) {
+        socket.nsp.sockets.get(previousSocketId)?.disconnect(true);
+      }
+
       socket.to(room.code).emit('room:updated', toRoomPublic(room));
       ack({
         ok: true,
