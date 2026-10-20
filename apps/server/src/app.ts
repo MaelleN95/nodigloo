@@ -7,6 +7,7 @@ import type {
   ServerToClientEvents,
 } from '@nodigloo/shared';
 import type { Config } from './config.js';
+import { GameService } from './domain/game-service.js';
 import { RoomService } from './domain/room-service.js';
 import { runRoomMaintenance } from './socket/room-maintenance.js';
 import { registerRoomHandlers } from './socket/room-handlers.js';
@@ -73,17 +74,34 @@ export const createApp = (
 
   app.use(errorHandler);
 
+  const gameService = new GameService(roomService, (roomCode, event) => {
+    switch (event.type) {
+      case 'question:started':
+        io.to(roomCode).emit('question:started', event.payload);
+        break;
+      case 'question:revealed':
+        io.to(roomCode).emit('question:revealed', event.payload);
+        break;
+      case 'game:finished':
+        io.to(roomCode).emit('game:finished', event.payload);
+        break;
+    }
+  });
+
   const maintenanceTimer = setInterval(
     () => runRoomMaintenance(io, roomService),
     1000,
   );
   maintenanceTimer.unref();
-  httpServer.once('close', () => clearInterval(maintenanceTimer));
+  httpServer.once('close', () => {
+    clearInterval(maintenanceTimer);
+    gameService.close();
+  });
 
   // On ne logue que l'id technique du socket, jamais de pseudo ni de contenu
   io.on('connection', (socket) => {
     console.info(`Socket connected: ${socket.id}`);
-    registerRoomHandlers(socket, roomService);
+    registerRoomHandlers(socket, roomService, gameService);
 
     socket.on('disconnect', (reason) => {
       console.info(`Socket disconnected: ${socket.id} (${reason})`);

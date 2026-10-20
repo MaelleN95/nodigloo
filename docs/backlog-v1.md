@@ -36,6 +36,8 @@ Ce backlog applique le cahier des charges Nodigloo v1.0. Les règles ci-dessous 
 
 - 2 à 8 joueurs dans une salle; pseudonymes temporaires; un hôte par salle.
 - 5 questions, 4 propositions par question et 20 secondes par question.
+- Banque locale de 20 questions originales; 5 questions différentes sont tirées au sort par partie.
 - 100 points par bonne réponse, 0 sinon; aucun bonus de rapidité.
+- Le lancement exige au moins 2 joueurs connectés.
 - Le serveur est l'autorité pour les salles, le chronomètre, les réponses, les transitions et le classement.
 - Délai de grâce de reconnexion : 60 secondes. Les données en mémoire sont perdues au redémarrage du backend.

@@ -6,6 +6,7 @@ import type {
 } from '@nodigloo/shared';
 import type { Socket } from 'socket.io';
 import { DomainError, toAppError } from '../domain/errors.js';
+import { GameService } from '../domain/game-service.js';
 import { RoomService } from '../domain/room-service.js';
 import { toRoomPublic } from '../domain/room.js';
 import {
@@ -35,6 +36,7 @@ const reportError = <T>(
 export const registerRoomHandlers = (
   socket: ClientSocket,
   roomService: RoomService,
+  gameService: GameService,
 ): void => {
   let membership: { roomCode: string; playerId: string } | undefined;
 
@@ -145,6 +147,12 @@ export const registerRoomHandlers = (
           },
         },
       });
+      if (room.status === 'playing') {
+        const currentQuestion = gameService.getCurrentQuestion(room.code);
+        if (currentQuestion) {
+          socket.emit('question:started', currentQuestion);
+        }
+      }
     } catch (error) {
       reportError(ack, error);
     }
@@ -166,7 +174,9 @@ export const registerRoomHandlers = (
         membership.playerId,
         socket.id,
       );
+      const firstQuestion = gameService.startGame(room);
       socket.nsp.to(room.code).emit('room:updated', toRoomPublic(room));
+      socket.nsp.to(room.code).emit('question:started', firstQuestion);
       ack({ ok: true, data: undefined });
     } catch (error) {
       reportError(ack, error);

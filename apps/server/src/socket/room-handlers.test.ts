@@ -5,6 +5,7 @@ import type {
   Ack,
   CreateRoomPayload,
   JoinedRoom,
+  QuestionStart,
   ResumeSessionPayload,
   RoomPublic,
 } from '@nodigloo/shared';
@@ -267,12 +268,20 @@ describe('room Socket.IO handlers', () => {
     const roomUpdated = new Promise<RoomPublic>((resolve) => {
       host.once('room:updated', resolve);
     });
+    const questionStarted = new Promise<QuestionStart>((resolve) => {
+      host.once('question:started', resolve);
+    });
 
     const result = await host.emitWithAck('game:start');
     const updated = await roomUpdated;
+    const question = await questionStarted;
 
     expect(result).toEqual({ ok: true, data: undefined });
     expect(updated.status).toBe('playing');
+    expect(question.questionNumber).toBe(1);
+    expect(question.totalQuestions).toBe(5);
+    expect(question.endsAt - question.serverNow).toBe(20_000);
+    expect(question.question).not.toHaveProperty('correctChoice');
   });
 
   it('refuse le démarrage par un non-hôte', async () => {
@@ -305,5 +314,40 @@ describe('room Socket.IO handlers', () => {
       ok: false,
       error: { code: 'NOT_ENOUGH_PLAYERS' },
     });
+  });
+
+  it('renvoie la question en cours au joueur qui reprend pendant une partie', async () => {
+    const host = await connectClient();
+    const guest = await connectClient();
+    const created = requireSuccess(
+      await host.emitWithAck('room:create', { nickname: 'Alice' }),
+    );
+    const joined = requireSuccess(
+      await guest.emitWithAck('room:join', {
+        code: created.room.code,
+        nickname: 'Bob',
+      }),
+    );
+    const initialQuestion = new Promise<QuestionStart>((resolve) => {
+      guest.once('question:started', resolve);
+    });
+    await host.emitWithAck('game:start');
+    const currentQuestion = await initialQuestion;
+
+    const resumedClient = await connectClient();
+    const resumedQuestion = new Promise<QuestionStart>((resolve) => {
+      resumedClient.once('question:started', resolve);
+    });
+    const resumed = requireSuccess(
+      await resumedClient.emitWithAck('session:resume', {
+        code: created.room.code,
+        playerId: joined.session.playerId,
+        reconnectToken: joined.session.reconnectToken,
+      }),
+    );
+    const questionAfterResume = await resumedQuestion;
+
+    expect(resumed.room.status).toBe('playing');
+    expect(questionAfterResume).toEqual(currentQuestion);
   });
 });
