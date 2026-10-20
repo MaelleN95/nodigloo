@@ -41,11 +41,12 @@ docker compose ps
 docker compose logs -f
 docker compose down
 npm install
+npm test
 npm run typecheck
 npm run build
 ```
 
-Le frontend de cette phase est un écran de vérification statique; le parcours multijoueur sera construit dans les phases suivantes. `npm install` crée le fichier `package-lock.json` à conserver avec le dépôt.
+Le frontend est encore un écran de vérification statique; le parcours multijoueur côté client reste à construire. `npm test` lance les tests unitaires et Socket.IO, décrits dans [tests/README.md](tests/README.md). `npm install` crée le fichier `package-lock.json` à conserver avec le dépôt.
 
 ## Structure
 
@@ -54,8 +55,8 @@ apps/
 	client/       React + TypeScript + Vite, servi en statique par Nginx
 	server/       Express + Socket.IO, TypeScript
 packages/
-	shared/       Contrats client/serveur (phase suivante)
-tests/          Scénarios métier et intégration (à ajouter avec les règles)
+	shared/       Contrats client/serveur et constantes
+tests/          Guide des tests du serveur
 docs/           Cadrage et suivi V1
 ```
 

@@ -28,4 +28,4 @@ Serveur vers client : `room:updated`, `question:started`, `question:revealed`, `
 
 La bonne réponse n'existe dans aucun type de question public : elle n'est envoyée que dans `QuestionReveal`, au moment de la révélation. Le type de question avec la réponse reste côté serveur. Le `reconnectToken` n'est donné qu'au joueur concerné via `Session` et ne figure jamais dans `RoomPublic`.
 
-Ces types ne valident rien à l'exécution : le serveur doit contrôler chaque payload reçu (étape 7).
+Ces types ne valident rien à l'exécution. Les payloads reçus par Socket.IO sont donc aussi contrôlés côté serveur avec zod avant d'être transmis au domaine.
