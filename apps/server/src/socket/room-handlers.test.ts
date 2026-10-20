@@ -10,6 +10,8 @@ import type {
 } from '@nodigloo/shared';
 import { createApp } from '../app.js';
 import type { Config } from '../config.js';
+import { RoomService } from '../domain/room-service.js';
+import { runRoomMaintenance } from './room-maintenance.js';
 
 const config: Config = {
   port: 0,
@@ -21,9 +23,13 @@ describe('room Socket.IO handlers', () => {
   const clients: ClientSocket[] = [];
   let app: ReturnType<typeof createApp>;
   let port: number;
+  let now: number;
+  let roomService: RoomService;
 
   beforeEach(async () => {
-    app = createApp(config);
+    now = 1000;
+    roomService = new RoomService({ now: () => now });
+    app = createApp(config, roomService);
     await new Promise<void>((resolve, reject) => {
       app.httpServer.once('error', reject);
       app.httpServer.listen(0, '127.0.0.1', resolve);
@@ -210,5 +216,41 @@ describe('room Socket.IO handlers', () => {
       error: { code: 'INVALID_PAYLOAD' },
     });
     expect(client.connected).toBe(true);
+  });
+
+  it('retire les joueurs expirés et diffuse la salle mise à jour', async () => {
+    const host = await connectClient();
+    const created = requireSuccess(
+      await host.emitWithAck('room:create', { nickname: 'Alice' }),
+    );
+    const { player } = roomService.joinRoom(
+      created.room.code,
+      'Bob',
+      'socket-hors-ligne',
+    );
+    roomService.markDisconnected(
+      created.room.code,
+      player.id,
+      'socket-hors-ligne',
+    );
+    const roomUpdated = new Promise<RoomPublic>((resolve) => {
+      host.once('room:updated', resolve);
+    });
+
+    now += 60_001;
+    runRoomMaintenance(app.io, roomService);
+
+    const updated = await roomUpdated;
+    expect(updated.players.map((entry) => entry.nickname)).toEqual(['Alice']);
+  });
+
+  it('supprime une salle quand tous ses joueurs ont expiré', () => {
+    const { room, player } = roomService.createRoom('Alice', 'socket-hors-ligne');
+    roomService.markDisconnected(room.code, player.id, 'socket-hors-ligne');
+    now += 60_001;
+
+    runRoomMaintenance(app.io, roomService);
+
+    expect(roomService.getRoom(room.code)).toBeUndefined();
   });
 });

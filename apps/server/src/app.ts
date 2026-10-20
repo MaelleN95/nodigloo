@@ -8,6 +8,7 @@ import type {
 } from '@nodigloo/shared';
 import type { Config } from './config.js';
 import { RoomService } from './domain/room-service.js';
+import { runRoomMaintenance } from './socket/room-maintenance.js';
 import { registerRoomHandlers } from './socket/room-handlers.js';
 
 export class OriginNotAllowedError extends Error {
@@ -16,7 +17,10 @@ export class OriginNotAllowedError extends Error {
   }
 }
 
-export const createApp = (config: Config) => {
+export const createApp = (
+  config: Config,
+  roomService: RoomService = new RoomService(),
+) => {
   // Les requêtes sans origine (curl, healthcheck Docker) passent, les navigateurs doivent être dans la liste
   const originAllowed = (
     origin: string | undefined,
@@ -69,7 +73,12 @@ export const createApp = (config: Config) => {
 
   app.use(errorHandler);
 
-  const roomService = new RoomService();
+  const maintenanceTimer = setInterval(
+    () => runRoomMaintenance(io, roomService),
+    1000,
+  );
+  maintenanceTimer.unref();
+  httpServer.once('close', () => clearInterval(maintenanceTimer));
 
   // On ne logue que l'id technique du socket, jamais de pseudo ni de contenu
   io.on('connection', (socket) => {
