@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import type { ConnectionState } from '../types';
 
 type HeaderProps = {
@@ -7,9 +8,9 @@ type HeaderProps = {
 export function Header({ connectionState }: HeaderProps) {
   return (
     <header className="topbar">
-      <a className="wordmark" href="/" aria-label="Nodigloo, accueil">
+      <Link className="wordmark" to="/" aria-label="Nodigloo, accueil">
         <img className="wordmark-icon" src="/logo.png" alt="" />
-      </a>
+      </Link>
       <div className="topbar-meta">
         <span className="phase-tag">LE REFUGE DES JOUEURS</span>
         <span

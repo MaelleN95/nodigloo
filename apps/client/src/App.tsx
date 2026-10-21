@@ -8,6 +8,7 @@ import {
   type RankingEntry,
   type RoomPublic,
 } from '@nodigloo/shared';
+import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { Footer } from './components/Footer';
 import { Header } from './components/Header';
 import { HomeScreen } from './components/HomeScreen';
@@ -15,6 +16,7 @@ import { LobbyScreen } from './components/LobbyScreen';
 import { QuizScreen } from './components/QuizScreen';
 import { ResultsScreen } from './components/ResultsScreen';
 import { getFallbackRanking } from './lib/ranking';
+import { roomPath, type RoomStep } from './lib/routes';
 import {
   readStoredSession,
   removeSavedSession,
@@ -23,7 +25,7 @@ import {
 } from './lib/session';
 import { createNodiglooSocket, type NodiglooSocket } from './socket';
 import './style.css';
-import type { ConnectionState, PendingAction, Screen } from './types';
+import type { ConnectionState, PendingAction } from './types';
 
 const getServerError = (error: unknown): string => {
   if (error instanceof Error && error.message.toLowerCase().includes('timeout')) {
@@ -65,9 +67,12 @@ const connectSocket = (socket: NodiglooSocket): Promise<void> => {
 };
 
 export function App() {
+  const navigate = useNavigate();
+  // Les écouteurs Socket.IO sont créés une seule fois : la ref leur donne toujours le navigate à jour.
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
   const socketRef = useRef<NodiglooSocket | null>(null);
   const sessionRef = useRef<StoredSession | null>(null);
-  const [screen, setScreen] = useState<Screen>('home');
   const [nickname, setNickname] = useState('');
   const [roomCode, setRoomCode] = useState('');
   const [session, setSession] = useState<StoredSession | null>(null);
@@ -79,10 +84,17 @@ export function App() {
   const [secondsLeft, setSecondsLeft] = useState(
     QUESTION_DURATION_MS / 1000,
   );
-  const [pending, setPending] = useState<PendingAction>(null);
+  // Si une session est mémorisée, on attend sa reprise avant de juger l'URL (sinon on renverrait à l'accueil).
+  const [pending, setPending] = useState<PendingAction>(() =>
+    readStoredSession().session ? 'resume' : null,
+  );
   const [connectionState, setConnectionState] =
     useState<ConnectionState>('disconnected');
   const [error, setError] = useState<string | null>(null);
+
+  const goToRoom = (code: string, step: RoomStep) => {
+    navigateRef.current(roomPath(code, step));
+  };
 
   const showJoinedRoom = (joined: JoinedRoom) => {
     const storedSession: StoredSession = {
@@ -110,11 +122,11 @@ export function App() {
     }
 
     if (joined.room.status === 'playing') {
-      setScreen('quiz');
+      goToRoom(storedSession.code, 'quiz');
     } else if (joined.room.status === 'results') {
-      setScreen('results');
+      goToRoom(storedSession.code, 'results');
     } else {
-      setScreen('lobby');
+      goToRoom(storedSession.code, 'lobby');
     }
   };
 
@@ -133,7 +145,7 @@ export function App() {
         setSession(null);
         setRoom(null);
         setQuestion(null);
-        setScreen('home');
+        navigateRef.current('/');
         const cleared = removeSavedSession();
         setError(
           cleared
@@ -177,7 +189,9 @@ export function App() {
       setQuestion(startedQuestion);
       setReveal(null);
       setSelectedChoice(null);
-      setScreen('quiz');
+      if (sessionRef.current) {
+        goToRoom(sessionRef.current.code, 'quiz');
+      }
     });
     socket.on('question:revealed', (questionReveal) => {
       setReveal(questionReveal);
@@ -195,7 +209,9 @@ export function App() {
     });
     socket.on('game:finished', (finishedGame) => {
       setRanking(finishedGame.ranking);
-      setScreen('results');
+      if (sessionRef.current) {
+        goToRoom(sessionRef.current.code, 'results');
+      }
     });
 
     const saved = readStoredSession();
@@ -338,7 +354,7 @@ export function App() {
     setReveal(null);
     setRanking(null);
     setSelectedChoice(null);
-    setScreen('home');
+    navigate('/');
     setError(null);
     if (!removeSavedSession()) {
       setError('Le navigateur n’a pas pu effacer la session locale.');
@@ -351,6 +367,16 @@ export function App() {
   const isHost = Boolean(room && session && room.hostId === session.playerId);
   const finalRanking = ranking ?? (room ? getFallbackRanking(room) : []);
 
+  // Pas de salle (URL tapée à la main, session expirée) : retour à l'accueil, sauf si on est en train de reprendre la session.
+  const inRoom = (
+    render: (room: RoomPublic, session: StoredSession) => JSX.Element,
+  ) => {
+    if (room && session) {
+      return render(room, session);
+    }
+    return pending === 'resume' ? null : <Navigate to="/" replace />;
+  };
+
   return (
     <main className="shell">
       <Header connectionState={connectionState} />
@@ -361,48 +387,60 @@ export function App() {
         </p>
       )}
 
-      {screen === 'home' && (
-        <HomeScreen
-          nickname={nickname}
-          roomCode={roomCode}
-          pending={pending}
-          onNicknameChange={setNickname}
-          onRoomCodeChange={setRoomCode}
-          onCreate={createRoom}
-          onJoin={joinRoom}
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <HomeScreen
+              nickname={nickname}
+              roomCode={roomCode}
+              pending={pending}
+              onNicknameChange={setNickname}
+              onRoomCodeChange={setRoomCode}
+              onCreate={createRoom}
+              onJoin={joinRoom}
+            />
+          }
         />
-      )}
-
-      {screen === 'lobby' && room && session && (
-        <LobbyScreen
-          room={room}
-          playerId={session.playerId}
-          isHost={isHost}
-          pending={pending}
-          onStart={() => void startGame()}
+        <Route
+          path="/room/:code"
+          element={inRoom((currentRoom, currentSession) => (
+            <LobbyScreen
+              room={currentRoom}
+              playerId={currentSession.playerId}
+              isHost={isHost}
+              pending={pending}
+              onStart={() => void startGame()}
+            />
+          ))}
         />
-      )}
-
-      {screen === 'quiz' && room && (
-        <QuizScreen
-          room={room}
-          question={question}
-          reveal={reveal}
-          selectedChoice={selectedChoice}
-          secondsLeft={secondsLeft}
-          pending={pending}
-          isPlayerKnown={Boolean(currentPlayer)}
-          onAnswer={(choice) => void submitAnswer(choice)}
+        <Route
+          path="/room/:code/quiz"
+          element={inRoom((currentRoom) => (
+            <QuizScreen
+              room={currentRoom}
+              question={question}
+              reveal={reveal}
+              selectedChoice={selectedChoice}
+              secondsLeft={secondsLeft}
+              pending={pending}
+              isPlayerKnown={Boolean(currentPlayer)}
+              onAnswer={(choice) => void submitAnswer(choice)}
+            />
+          ))}
         />
-      )}
-
-      {screen === 'results' && room && (
-        <ResultsScreen
-          ranking={finalRanking}
-          playerId={session?.playerId}
-          onFinish={finishGame}
+        <Route
+          path="/room/:code/results"
+          element={inRoom((_currentRoom, currentSession) => (
+            <ResultsScreen
+              ranking={finalRanking}
+              playerId={currentSession.playerId}
+              onFinish={finishGame}
+            />
+          ))}
         />
-      )}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
 
       <Footer />
     </main>
