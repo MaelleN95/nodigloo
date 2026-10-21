@@ -1,31 +1,69 @@
-import type {
-  QuestionReveal,
-  QuestionStart,
-  RoomPublic,
-} from '@nodigloo/shared';
-import type { PendingAction } from '../types';
+import { useEffect, useState } from 'react';
+import { QUESTION_DURATION_MS, type RoomPublic } from '@nodigloo/shared';
+import { useRoom } from '../context/RoomContext';
+import { getServerError } from '../lib/socketHelpers';
 
 type QuizScreenProps = {
   room: RoomPublic;
-  question: QuestionStart | null;
-  reveal: QuestionReveal | null;
-  selectedChoice: number | null;
-  secondsLeft: number;
-  pending: PendingAction;
-  isPlayerKnown: boolean;
-  onAnswer: (choice: number) => void;
+  playerId: string;
 };
 
-export function QuizScreen({
-  room,
-  question,
-  reveal,
-  selectedChoice,
-  secondsLeft,
-  pending,
-  isPlayerKnown,
-  onAnswer,
-}: QuizScreenProps) {
+export function QuizScreen({ room, playerId }: QuizScreenProps) {
+  const { question, reveal, setError, getSocket } = useRoom();
+  const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState(QUESTION_DURATION_MS / 1000);
+  const [sending, setSending] = useState(false);
+  const isPlayerKnown = room.players.some((player) => player.id === playerId);
+
+  // Une nouvelle question (ou une déconnexion) efface la réponse précédente.
+  useEffect(() => {
+    setSelectedChoice(null);
+  }, [question]);
+
+  useEffect(() => {
+    if (!question || reveal) {
+      return;
+    }
+
+    const localDeadline =
+      performance.now() + Math.max(0, question.endsAt - question.serverNow);
+    const updateCountdown = () => {
+      setSecondsLeft(
+        Math.max(0, Math.ceil((localDeadline - performance.now()) / 1000)),
+      );
+    };
+    updateCountdown();
+    const interval = window.setInterval(updateCountdown, 250);
+    return () => window.clearInterval(interval);
+  }, [question, reveal]);
+
+  const submitAnswer = async (choice: number) => {
+    if (!question || selectedChoice !== null || sending) {
+      return;
+    }
+
+    setError(null);
+    setSending(true);
+    try {
+      const socket = await getSocket();
+      const result = await socket
+        .timeout(8_000)
+        .emitWithAck('quiz:answer:submit', {
+          questionId: question.question.id,
+          choice,
+        });
+      if (!result.ok) {
+        setError(result.error.message);
+        return;
+      }
+      setSelectedChoice(choice);
+    } catch (caught) {
+      setError(getServerError(caught));
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <section className="game-panel quiz-panel" aria-labelledby="quiz-title">
       <div className="quiz-heading">
@@ -73,11 +111,9 @@ export function QuizScreen({
                   type="button"
                   aria-pressed={isSelected}
                   disabled={
-                    selectedChoice !== null ||
-                    reveal !== null ||
-                    pending === 'answer'
+                    selectedChoice !== null || reveal !== null || sending
                   }
-                  onClick={() => onAnswer(index)}
+                  onClick={() => void submitAnswer(index)}
                 >
                   <span className="choice-letter">
                     {String.fromCharCode(65 + index)}

@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import { QUESTION_DURATION_MS } from '@nodigloo/shared';
+import type { RoomPublic } from '@nodigloo/shared';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { Footer } from './components/Footer';
 import { Header } from './components/Header';
@@ -9,84 +8,13 @@ import { QuizScreen } from './components/QuizScreen';
 import { ResultsScreen } from './components/ResultsScreen';
 import { useRoom } from './context/RoomContext';
 import { getFallbackRanking } from './lib/ranking';
-import { getServerError } from './lib/socketHelpers';
-import './style.css';
-import type { PendingAction } from './types';
-import type { RoomPublic } from '@nodigloo/shared';
 import type { StoredSession } from './lib/session';
+import './style.css';
 
 export function App() {
-  const {
-    connectionState,
-    session,
-    room,
-    question,
-    reveal,
-    ranking,
-    resuming,
-    error,
-    setError,
-    getSocket,
-    leaveRoom,
-  } = useRoom();
-  const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
-  const [secondsLeft, setSecondsLeft] = useState(
-    QUESTION_DURATION_MS / 1000,
-  );
-  const [pending, setPending] = useState<PendingAction>(null);
+  const { connectionState, session, room, ranking, resuming, error, leaveRoom } =
+    useRoom();
 
-  // Une nouvelle question (ou une déconnexion) efface la réponse précédente.
-  useEffect(() => {
-    setSelectedChoice(null);
-  }, [question]);
-
-  useEffect(() => {
-    if (!question || reveal) {
-      return;
-    }
-
-    const localDeadline =
-      performance.now() + Math.max(0, question.endsAt - question.serverNow);
-    const updateCountdown = () => {
-      setSecondsLeft(
-        Math.max(0, Math.ceil((localDeadline - performance.now()) / 1000)),
-      );
-    };
-    updateCountdown();
-    const interval = window.setInterval(updateCountdown, 250);
-    return () => window.clearInterval(interval);
-  }, [question, reveal]);
-
-  const submitAnswer = async (choice: number) => {
-    if (!question || selectedChoice !== null || pending === 'answer') {
-      return;
-    }
-
-    setError(null);
-    setPending('answer');
-    try {
-      const socket = await getSocket();
-      const result = await socket
-        .timeout(8_000)
-        .emitWithAck('quiz:answer:submit', {
-          questionId: question.question.id,
-          choice,
-        });
-      if (!result.ok) {
-        setError(result.error.message);
-        return;
-      }
-      setSelectedChoice(choice);
-    } catch (caught) {
-      setError(getServerError(caught));
-    } finally {
-      setPending(null);
-    }
-  };
-
-  const currentPlayer = room?.players.find(
-    (player) => player.id === session?.playerId,
-  );
   const finalRanking = ranking ?? (room ? getFallbackRanking(room) : []);
 
   // Pas de salle (URL tapée à la main, session expirée) : retour à l'accueil, sauf si on est en train de reprendre la session.
@@ -110,10 +38,7 @@ export function App() {
       )}
 
       <Routes>
-        <Route
-          path="/"
-          element={<HomeScreen />}
-        />
+        <Route path="/" element={<HomeScreen />} />
         <Route
           path="/room/:code"
           element={inRoom((currentRoom, currentSession) => (
@@ -125,16 +50,10 @@ export function App() {
         />
         <Route
           path="/room/:code/quiz"
-          element={inRoom((currentRoom) => (
+          element={inRoom((currentRoom, currentSession) => (
             <QuizScreen
               room={currentRoom}
-              question={question}
-              reveal={reveal}
-              selectedChoice={selectedChoice}
-              secondsLeft={secondsLeft}
-              pending={pending}
-              isPlayerKnown={Boolean(currentPlayer)}
-              onAnswer={(choice) => void submitAnswer(choice)}
+              playerId={currentSession.playerId}
             />
           ))}
         />
