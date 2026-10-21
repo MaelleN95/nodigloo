@@ -6,6 +6,10 @@ COPY apps/server/package.json apps/server/package.json
 COPY packages/shared/package.json packages/shared/package.json
 RUN npm ci --workspace @nodigloo/client --include-workspace-root
 COPY apps/client apps/client
+COPY packages/shared packages/shared
+ARG VITE_SERVER_URL=http://localhost:3001
+ENV VITE_SERVER_URL=$VITE_SERVER_URL
+RUN npm run build --workspace @nodigloo/shared
 RUN npm run build --workspace @nodigloo/client
 
 FROM nginx:alpine

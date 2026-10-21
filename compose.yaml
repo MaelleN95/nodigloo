@@ -24,6 +24,8 @@ services:
     build:
       context: .
       dockerfile: apps/client/Dockerfile
+      args:
+        VITE_SERVER_URL: ${VITE_SERVER_URL:-http://localhost:3001}
     ports:
       - '${CLIENT_PORT:-8080}:80'
     depends_on:
