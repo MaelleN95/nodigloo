@@ -7,15 +7,11 @@ import { LobbyScreen } from './components/LobbyScreen';
 import { QuizScreen } from './components/QuizScreen';
 import { ResultsScreen } from './components/ResultsScreen';
 import { useRoom } from './context/RoomContext';
-import { getFallbackRanking } from './lib/ranking';
 import type { StoredSession } from './lib/session';
 import './style.css';
 
 export function App() {
-  const { connectionState, session, room, ranking, resuming, error, leaveRoom } =
-    useRoom();
-
-  const finalRanking = ranking ?? (room ? getFallbackRanking(room) : []);
+  const { connectionState, session, room, resuming, error } = useRoom();
 
   // Pas de salle (URL tapée à la main, session expirée) : retour à l'accueil, sauf si on est en train de reprendre la session.
   const inRoom = (
@@ -59,11 +55,10 @@ export function App() {
         />
         <Route
           path="/room/:code/results"
-          element={inRoom((_currentRoom, currentSession) => (
+          element={inRoom((currentRoom, currentSession) => (
             <ResultsScreen
-              ranking={finalRanking}
+              room={currentRoom}
               playerId={currentSession.playerId}
-              onFinish={leaveRoom}
             />
           ))}
         />

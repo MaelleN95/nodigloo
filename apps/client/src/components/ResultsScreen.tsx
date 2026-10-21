@@ -1,16 +1,17 @@
-import type { RankingEntry } from '@nodigloo/shared';
+import type { RoomPublic } from '@nodigloo/shared';
+import { useRoom } from '../context/RoomContext';
+import { getFallbackRanking } from '../lib/ranking';
 
 type ResultsScreenProps = {
-  ranking: RankingEntry[];
-  playerId: string | undefined;
-  onFinish: () => void;
+  room: RoomPublic;
+  playerId: string;
 };
 
-export function ResultsScreen({
-  ranking,
-  playerId,
-  onFinish,
-}: ResultsScreenProps) {
+export function ResultsScreen({ room, playerId }: ResultsScreenProps) {
+  const { ranking: serverRanking, leaveRoom } = useRoom();
+  // Après une reconnexion tardive on n'a plus le classement du serveur : on le recalcule avec les scores de la salle.
+  const ranking = serverRanking ?? getFallbackRanking(room);
+
   return (
     <section
       className="game-panel results-panel"
@@ -41,7 +42,7 @@ export function ResultsScreen({
       <button
         className="button button-secondary finish-button"
         type="button"
-        onClick={onFinish}
+        onClick={leaveRoom}
       >
         Terminer cette partie
         <span aria-hidden="true">→</span>
