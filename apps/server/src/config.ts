@@ -6,7 +6,25 @@ export interface Config {
   port: number;
   allowedOrigins: string[];
   nodeEnv: NodeEnv;
+  attemptLimit: { max: number; windowMs: number };
 }
+
+const parsePositiveInteger = (
+  name: string,
+  value: string | undefined,
+  fallback: number,
+): number => {
+  if (value === undefined || value === '') {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(`${name} invalide : "${value}"`);
+  }
+
+  return parsed;
+};
 
 const parsePort = (value: string | undefined): number => {
   if (value === undefined || value === '') {
@@ -39,4 +57,13 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => ({
   port: parsePort(env.PORT),
   allowedOrigins: parseOrigins(env.CLIENT_ORIGINS),
   nodeEnv: parseNodeEnv(env.NODE_ENV),
+  attemptLimit: {
+    max: parsePositiveInteger('ATTEMPT_LIMIT_MAX', env.ATTEMPT_LIMIT_MAX, 30),
+    windowMs:
+      parsePositiveInteger(
+        'ATTEMPT_LIMIT_WINDOW_SECONDS',
+        env.ATTEMPT_LIMIT_WINDOW_SECONDS,
+        60,
+      ) * 1000,
+  },
 });

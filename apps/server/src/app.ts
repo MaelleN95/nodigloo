@@ -107,8 +107,8 @@ export const createApp = (
     quizService.close();
   });
 
-  // 30 tentatives de création, jonction ou reprise par minute et par IP
-  const attemptLimiter = createRateLimiter({ max: 30, windowMs: 60_000 });
+  // Tentatives de création, jonction ou reprise, comptées par IP
+  const attemptLimiter = createRateLimiter(config.attemptLimit);
 
   // On ne logue que l'id technique du socket, jamais de pseudo ni de contenu
   io.on('connection', (socket) => {

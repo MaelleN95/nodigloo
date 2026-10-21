@@ -7,7 +7,26 @@ describe('loadConfig', () => {
       port: 3001,
       allowedOrigins: ['http://localhost:8080'],
       nodeEnv: 'development',
+      attemptLimit: { max: 30, windowMs: 60_000 },
     });
+  });
+
+  it('lit la limite de tentatives et la convertit en millisecondes', () => {
+    const config = loadConfig({
+      ATTEMPT_LIMIT_MAX: '5',
+      ATTEMPT_LIMIT_WINDOW_SECONDS: '10',
+    });
+
+    expect(config.attemptLimit).toEqual({ max: 5, windowMs: 10_000 });
+  });
+
+  it('refuse une limite de tentatives invalide', () => {
+    expect(() => loadConfig({ ATTEMPT_LIMIT_MAX: '0' })).toThrow(
+      'ATTEMPT_LIMIT_MAX invalide',
+    );
+    expect(() =>
+      loadConfig({ ATTEMPT_LIMIT_WINDOW_SECONDS: 'abc' }),
+    ).toThrow('ATTEMPT_LIMIT_WINDOW_SECONDS invalide');
   });
 
   it('lit le port et le mode d\'exécution', () => {

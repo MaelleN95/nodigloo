@@ -21,6 +21,7 @@ const config: Config = {
   port: 0,
   allowedOrigins: [],
   nodeEnv: 'test',
+  attemptLimit: { max: 30, windowMs: 60_000 },
 };
 
 describe('room Socket.IO handlers', () => {

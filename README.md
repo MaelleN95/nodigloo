@@ -79,6 +79,8 @@ Les valeurs locales sont documentées dans `.env.example`. Le serveur lit son en
 | `PORT` | Port d'écoute du serveur. Une valeur invalide empêche le démarrage. | `3001` |
 | `CLIENT_ORIGINS` | Origines autorisées par Express et Socket.IO, séparées par des virgules. | `http://localhost:8080` |
 | `NODE_ENV` | Mode d'exécution : `development`, `production` ou `test`. | `development` |
+| `ATTEMPT_LIMIT_MAX` | Nombre maximal de créations, jonctions ou reprises de salle par IP dans la fenêtre. | `30` |
+| `ATTEMPT_LIMIT_WINDOW_SECONDS` | Durée de cette fenêtre, en secondes. | `60` |
 | `VITE_SERVER_URL` | Adresse du serveur Socket.IO intégrée au client lors de la construction Docker. | `http://localhost:3001` |
 
 `VITE_SERVER_URL` est l'adresse Socket.IO intégrée au site lors du build Docker. Par défaut, le navigateur joint le serveur sur `http://localhost:3001`. Si le port externe du serveur change, ajuste aussi cette URL dans `.env`. Aucun secret n'est requis pour exécuter le projet localement.
