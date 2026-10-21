@@ -174,6 +174,23 @@ describe('room Socket.IO handlers', () => {
     expect(client.connected).toBe(true);
   });
 
+  it('refuse les tentatives de jonction répétées depuis la même adresse', async () => {
+    const client = await connectClient();
+    let lastResult: Ack<JoinedRoom> | undefined;
+
+    for (let attempt = 0; attempt < 31; attempt += 1) {
+      lastResult = await client.emitWithAck('room:join', {
+        code: 'ZZZZZ',
+        nickname: 'Alice',
+      });
+    }
+
+    expect(lastResult).toMatchObject({
+      ok: false,
+      error: { code: 'RATE_LIMITED' },
+    });
+  });
+
   it('reprend une session et ferme l’ancienne connexion du joueur', async () => {
     const original = await connectClient();
     const observer = await connectClient();

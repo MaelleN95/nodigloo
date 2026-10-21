@@ -9,6 +9,7 @@ export const ERROR_CODES = [
   'ALREADY_ANSWERED',
   'ANSWER_TOO_LATE',
   'SESSION_EXPIRED',
+  'RATE_LIMITED',
   'INTERNAL_ERROR',
 ] as const;
 

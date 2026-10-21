@@ -14,6 +14,7 @@ import {
 import { RoomService } from './domain/room-service.js';
 import { runRoomMaintenance } from './socket/room-maintenance.js';
 import { registerRoomHandlers } from './socket/room-handlers.js';
+import { createRateLimiter } from './socket/rate-limiter.js';
 
 export class OriginNotAllowedError extends Error {
   constructor() {
@@ -106,10 +107,13 @@ export const createApp = (
     quizService.close();
   });
 
+  // 30 tentatives de création, jonction ou reprise par minute et par IP
+  const attemptLimiter = createRateLimiter({ max: 30, windowMs: 60_000 });
+
   // On ne logue que l'id technique du socket, jamais de pseudo ni de contenu
   io.on('connection', (socket) => {
     console.info(`Socket connected: ${socket.id}`);
-    registerRoomHandlers(socket, roomService, quizService);
+    registerRoomHandlers(socket, roomService, quizService, attemptLimiter);
 
     socket.on('disconnect', (reason) => {
       console.info(`Socket disconnected: ${socket.id} (${reason})`);

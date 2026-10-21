@@ -16,6 +16,7 @@ import {
   resumeSessionSchema,
   submitQuizAnswerSchema,
 } from './payloads.js';
+import type { RateLimiter } from './rate-limiter.js';
 
 type ClientSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 type JoinedRoomAck = (result: Ack<JoinedRoom>) => void;
@@ -38,8 +39,19 @@ export const registerRoomHandlers = (
   socket: ClientSocket,
   roomService: RoomService,
   quizService: QuizService,
+  attemptLimiter?: RateLimiter,
 ): void => {
   let membership: { roomCode: string; playerId: string } | undefined;
+
+  // Les tentatives sont comptées par adresse IP : se reconnecter ne remet pas le compteur à zéro
+  const checkAttempts = (): void => {
+    if (attemptLimiter && !attemptLimiter.allow(socket.handshake.address)) {
+      throw new DomainError(
+        'RATE_LIMITED',
+        'Trop de tentatives, patiente un instant avant de réessayer',
+      );
+    }
+  };
 
   socket.on('disconnect', () => {
     if (membership) {
@@ -58,6 +70,7 @@ export const registerRoomHandlers = (
     }
 
     try {
+      checkAttempts();
       const { nickname } = parsePayload(createRoomSchema, payload);
       const { room, player } = roomService.createRoom(nickname, socket.id);
 
@@ -85,6 +98,7 @@ export const registerRoomHandlers = (
     }
 
     try {
+      checkAttempts();
       const { code, nickname } = parsePayload(joinRoomSchema, payload);
       const { room, player } = roomService.joinRoom(
         code,
@@ -117,6 +131,7 @@ export const registerRoomHandlers = (
     }
 
     try {
+      checkAttempts();
       const { code, playerId, reconnectToken } = parsePayload(
         resumeSessionSchema,
         payload,
