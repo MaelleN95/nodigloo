@@ -34,6 +34,16 @@ Les règles de travail (fonctionnalités, commits) sont décrites dans [CONTRIBU
 
 3. Ouvrir le client à [http://localhost:8080](http://localhost:8080) et vérifier l'API à [http://localhost:3001/health](http://localhost:3001/health).
 
+## Développer le client avec rechargement automatique
+
+Pour voir chaque modification du front sans reconstruire l'image, démarrer avec le fichier de développement :
+
+```sh
+docker compose -f compose.yaml -f compose.dev.yaml up -d
+```
+
+Le site reste sur [http://localhost:8080](http://localhost:8080), mais il est servi par Vite et se met à jour à chaque sauvegarde. Le premier démarrage installe les dépendances et prend quelques minutes. Pour revenir à la version construite, utiliser `docker compose up -d --build`.
+
 Commandes utiles :
 
 ```sh
