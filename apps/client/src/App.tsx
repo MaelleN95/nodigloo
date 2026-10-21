@@ -1,235 +1,47 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
-import {
-  QUESTION_DURATION_MS,
-  type Ack,
-  type JoinedRoom,
-  type QuestionReveal,
-  type QuestionStart,
-  type RankingEntry,
-  type RoomPublic,
-} from '@nodigloo/shared';
-import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import { useEffect, useState, type FormEvent } from 'react';
+import { QUESTION_DURATION_MS } from '@nodigloo/shared';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { Footer } from './components/Footer';
 import { Header } from './components/Header';
 import { HomeScreen } from './components/HomeScreen';
 import { LobbyScreen } from './components/LobbyScreen';
 import { QuizScreen } from './components/QuizScreen';
 import { ResultsScreen } from './components/ResultsScreen';
+import { useRoom } from './context/RoomContext';
 import { getFallbackRanking } from './lib/ranking';
-import { roomPath, type RoomStep } from './lib/routes';
-import {
-  readStoredSession,
-  removeSavedSession,
-  saveSession,
-  type StoredSession,
-} from './lib/session';
-import { createNodiglooSocket, type NodiglooSocket } from './socket';
+import { getServerError } from './lib/socketHelpers';
 import './style.css';
-import type { ConnectionState, PendingAction } from './types';
-
-const getServerError = (error: unknown): string => {
-  if (error instanceof Error && error.message.toLowerCase().includes('timeout')) {
-    return 'Le serveur met trop de temps à répondre. Réessaie dans un instant.';
-  }
-
-  return 'Impossible de joindre le serveur. Vérifie qu’il est démarré puis réessaie.';
-};
-
-const connectSocket = (socket: NodiglooSocket): Promise<void> => {
-  if (socket.connected) {
-    return Promise.resolve();
-  }
-
-  return new Promise((resolve, reject) => {
-    const timeout = window.setTimeout(() => {
-      cleanup();
-      reject(new Error('Connection timeout'));
-    }, 10_000);
-
-    const cleanup = () => {
-      window.clearTimeout(timeout);
-      socket.off('connect', onConnect);
-      socket.off('connect_error', onError);
-    };
-    const onConnect = () => {
-      cleanup();
-      resolve();
-    };
-    const onError = (error: Error) => {
-      cleanup();
-      reject(error);
-    };
-
-    socket.once('connect', onConnect);
-    socket.once('connect_error', onError);
-    socket.connect();
-  });
-};
+import type { PendingAction } from './types';
+import type { RoomPublic } from '@nodigloo/shared';
+import type { StoredSession } from './lib/session';
 
 export function App() {
-  const navigate = useNavigate();
-  // Les écouteurs Socket.IO sont créés une seule fois : la ref leur donne toujours le navigate à jour.
-  const navigateRef = useRef(navigate);
-  navigateRef.current = navigate;
-  const socketRef = useRef<NodiglooSocket | null>(null);
-  const sessionRef = useRef<StoredSession | null>(null);
+  const {
+    connectionState,
+    session,
+    room,
+    question,
+    reveal,
+    ranking,
+    resuming,
+    error,
+    setError,
+    getSocket,
+    enterRoom,
+    leaveRoom,
+  } = useRoom();
   const [nickname, setNickname] = useState('');
   const [roomCode, setRoomCode] = useState('');
-  const [session, setSession] = useState<StoredSession | null>(null);
-  const [room, setRoom] = useState<RoomPublic | null>(null);
-  const [question, setQuestion] = useState<QuestionStart | null>(null);
-  const [reveal, setReveal] = useState<QuestionReveal | null>(null);
-  const [ranking, setRanking] = useState<RankingEntry[] | null>(null);
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(
     QUESTION_DURATION_MS / 1000,
   );
-  // Si une session est mémorisée, on attend sa reprise avant de juger l'URL (sinon on renverrait à l'accueil).
-  const [pending, setPending] = useState<PendingAction>(() =>
-    readStoredSession().session ? 'resume' : null,
-  );
-  const [connectionState, setConnectionState] =
-    useState<ConnectionState>('disconnected');
-  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState<PendingAction>(null);
 
-  const goToRoom = (code: string, step: RoomStep) => {
-    navigateRef.current(roomPath(code, step));
-  };
-
-  const showJoinedRoom = (joined: JoinedRoom) => {
-    const storedSession: StoredSession = {
-      code: joined.room.code,
-      ...joined.session,
-    };
-    sessionRef.current = storedSession;
-    setSession(storedSession);
-    setRoom(joined.room);
-    setQuestion(null);
-    setReveal(null);
-    setRanking(null);
-
-    const player = joined.room.players.find(
-      (entry) => entry.id === storedSession.playerId,
-    );
-    if (player) {
-      setNickname(player.nickname);
-    }
-
-    if (!saveSession(storedSession)) {
-      setError(
-        'La salle est ouverte, mais le navigateur ne pourra pas mémoriser ta session après fermeture.',
-      );
-    }
-
-    if (joined.room.status === 'playing') {
-      goToRoom(storedSession.code, 'quiz');
-    } else if (joined.room.status === 'results') {
-      goToRoom(storedSession.code, 'results');
-    } else {
-      goToRoom(storedSession.code, 'lobby');
-    }
-  };
-
-  const resumeSession = async (
-    socket: NodiglooSocket,
-    storedSession: StoredSession,
-  ) => {
-    setPending('resume');
-    try {
-      const result: Ack<JoinedRoom> = await socket
-        .timeout(8_000)
-        .emitWithAck('session:resume', storedSession);
-
-      if (!result.ok) {
-        sessionRef.current = null;
-        setSession(null);
-        setRoom(null);
-        setQuestion(null);
-        navigateRef.current('/');
-        const cleared = removeSavedSession();
-        setError(
-          cleared
-            ? result.error.message
-            : `${result.error.message} Le navigateur n’a pas pu effacer la session locale.`,
-        );
-        return;
-      }
-
-      showJoinedRoom(result.data);
-      setError(null);
-    } catch (caught) {
-      setError(getServerError(caught));
-    } finally {
-      setPending((current) => (current === 'resume' ? null : current));
-    }
-  };
-
+  // Une nouvelle question (ou une déconnexion) efface la réponse précédente.
   useEffect(() => {
-    const socket = createNodiglooSocket();
-    socketRef.current = socket;
-
-    socket.on('connect', () => {
-      setConnectionState('connected');
-      const savedSession = sessionRef.current;
-      if (savedSession) {
-        void resumeSession(socket, savedSession);
-      }
-    });
-    socket.on('disconnect', () => {
-      setConnectionState('disconnected');
-      if (sessionRef.current) {
-        setQuestion(null);
-        setReveal(null);
-        setSelectedChoice(null);
-      }
-    });
-    socket.on('connect_error', () => setConnectionState('disconnected'));
-    socket.on('room:updated', (updatedRoom) => setRoom(updatedRoom));
-    socket.on('question:started', (startedQuestion) => {
-      setQuestion(startedQuestion);
-      setReveal(null);
-      setSelectedChoice(null);
-      if (sessionRef.current) {
-        goToRoom(sessionRef.current.code, 'quiz');
-      }
-    });
-    socket.on('question:revealed', (questionReveal) => {
-      setReveal(questionReveal);
-      setRoom((currentRoom) =>
-        currentRoom
-          ? {
-              ...currentRoom,
-              players: currentRoom.players.map((player) => ({
-                ...player,
-                score: questionReveal.scores[player.id] ?? player.score,
-              })),
-            }
-          : currentRoom,
-      );
-    });
-    socket.on('game:finished', (finishedGame) => {
-      setRanking(finishedGame.ranking);
-      if (sessionRef.current) {
-        goToRoom(sessionRef.current.code, 'results');
-      }
-    });
-
-    const saved = readStoredSession();
-    if (saved.error) {
-      setError(saved.error);
-    }
-    if (saved.session) {
-      sessionRef.current = saved.session;
-      setSession(saved.session);
-      setPending('resume');
-      socket.connect();
-    }
-
-    return () => {
-      socket.disconnect();
-      socketRef.current = null;
-    };
-  }, []);
+    setSelectedChoice(null);
+  }, [question]);
 
   useEffect(() => {
     if (!question || reveal) {
@@ -248,22 +60,13 @@ export function App() {
     return () => window.clearInterval(interval);
   }, [question, reveal]);
 
-  const getCurrentSocket = async (): Promise<NodiglooSocket> => {
-    const socket = socketRef.current;
-    if (!socket) {
-      throw new Error('La connexion au serveur n’est pas disponible.');
-    }
-    await connectSocket(socket);
-    return socket;
-  };
-
   const createRoom = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
     setPending('create');
 
     try {
-      const socket = await getCurrentSocket();
+      const socket = await getSocket();
       const result = await socket.timeout(8_000).emitWithAck('room:create', {
         nickname: nickname.trim(),
       });
@@ -271,7 +74,7 @@ export function App() {
         setError(result.error.message);
         return;
       }
-      showJoinedRoom(result.data);
+      enterRoom(result.data);
     } catch (caught) {
       setError(getServerError(caught));
     } finally {
@@ -285,7 +88,7 @@ export function App() {
     setPending('join');
 
     try {
-      const socket = await getCurrentSocket();
+      const socket = await getSocket();
       const result = await socket.timeout(8_000).emitWithAck('room:join', {
         code: roomCode.trim().toUpperCase(),
         nickname: nickname.trim(),
@@ -294,7 +97,7 @@ export function App() {
         setError(result.error.message);
         return;
       }
-      showJoinedRoom(result.data);
+      enterRoom(result.data);
     } catch (caught) {
       setError(getServerError(caught));
     } finally {
@@ -306,7 +109,7 @@ export function App() {
     setError(null);
     setPending('start');
     try {
-      const socket = await getCurrentSocket();
+      const socket = await getSocket();
       const result = await socket.timeout(8_000).emitWithAck('game:start');
       if (!result.ok) {
         setError(result.error.message);
@@ -326,7 +129,7 @@ export function App() {
     setError(null);
     setPending('answer');
     try {
-      const socket = await getCurrentSocket();
+      const socket = await getSocket();
       const result = await socket
         .timeout(8_000)
         .emitWithAck('quiz:answer:submit', {
@@ -345,22 +148,6 @@ export function App() {
     }
   };
 
-  const finishGame = () => {
-    socketRef.current?.disconnect();
-    sessionRef.current = null;
-    setSession(null);
-    setRoom(null);
-    setQuestion(null);
-    setReveal(null);
-    setRanking(null);
-    setSelectedChoice(null);
-    navigate('/');
-    setError(null);
-    if (!removeSavedSession()) {
-      setError('Le navigateur n’a pas pu effacer la session locale.');
-    }
-  };
-
   const currentPlayer = room?.players.find(
     (player) => player.id === session?.playerId,
   );
@@ -374,7 +161,7 @@ export function App() {
     if (room && session) {
       return render(room, session);
     }
-    return pending === 'resume' ? null : <Navigate to="/" replace />;
+    return resuming ? null : <Navigate to="/" replace />;
   };
 
   return (
@@ -394,7 +181,7 @@ export function App() {
             <HomeScreen
               nickname={nickname}
               roomCode={roomCode}
-              pending={pending}
+              pending={resuming ? 'resume' : pending}
               onNicknameChange={setNickname}
               onRoomCodeChange={setRoomCode}
               onCreate={createRoom}
@@ -435,7 +222,7 @@ export function App() {
             <ResultsScreen
               ranking={finalRanking}
               playerId={currentSession.playerId}
-              onFinish={finishGame}
+              onFinish={leaveRoom}
             />
           ))}
         />
