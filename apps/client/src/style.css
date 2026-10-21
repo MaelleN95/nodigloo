@@ -132,6 +132,11 @@ button:disabled {
   box-shadow: 0 0 0 4px #263b37;
 }
 
+.connection-reconnecting .connection-dot {
+  background: var(--amber);
+  box-shadow: 0 0 0 4px #3a3222;
+}
+
 .notice {
   margin: 18px 0 0;
   padding: 12px 16px;

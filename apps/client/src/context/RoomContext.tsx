@@ -139,14 +139,22 @@ export function RoomProvider({ children }: { children: ReactNode }) {
         void resumeSession(socket, savedSession);
       }
     });
-    socket.on('disconnect', () => {
-      setConnectionState('disconnected');
+    socket.on('disconnect', (reason) => {
+      // Une coupure volontaire ne doit pas passer pour une reconnexion
+      const willRetry = reason !== 'io client disconnect';
+      setConnectionState(
+        willRetry && sessionRef.current ? 'reconnecting' : 'disconnected',
+      );
       if (sessionRef.current) {
         setQuestion(null);
         setReveal(null);
       }
     });
-    socket.on('connect_error', () => setConnectionState('disconnected'));
+    socket.on('connect_error', () => {
+      setConnectionState(sessionRef.current ? 'reconnecting' : 'disconnected');
+    });
+    // Après toutes les tentatives automatiques, on arrête de promettre une reconnexion
+    socket.io.on('reconnect_failed', () => setConnectionState('disconnected'));
     socket.on('room:updated', (updatedRoom) => setRoom(updatedRoom));
     socket.on('question:started', (startedQuestion) => {
       setQuestion(startedQuestion);

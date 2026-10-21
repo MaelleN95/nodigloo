@@ -5,6 +5,12 @@ type HeaderProps = {
   connectionState: ConnectionState;
 };
 
+const connectionLabels: Record<ConnectionState, string> = {
+  connected: 'Connecté',
+  reconnecting: 'Reconnexion…',
+  disconnected: 'Hors ligne',
+};
+
 export function Header({ connectionState }: HeaderProps) {
   return (
     <header className="topbar">
@@ -18,7 +24,7 @@ export function Header({ connectionState }: HeaderProps) {
           role="status"
         >
           <span className="connection-dot" />
-          {connectionState === 'connected' ? 'Connecté' : 'Hors ligne'}
+          {connectionLabels[connectionState]}
         </span>
       </div>
     </header>
