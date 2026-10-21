@@ -9,9 +9,9 @@ Ce backlog applique le cahier des charges Nodigloo v1.0. Les règles ci-dessous 
 | V1-01 | Créer une salle avec un code partageable et un hôte.      | Le code est unique et suffisamment imprévisible; le créateur devient hôte.                                                        |
 | V1-02 | Rejoindre une salle avec un pseudonyme temporaire.        | Une salle accepte de 2 à 8 joueurs; le neuvième est refusé.                                                                       |
 | V1-03 | Synchroniser le lobby en temps réel.                      | Les joueurs voient le même état; seul l'hôte peut lancer la partie.                                                               |
-| V1-04 | Jouer un quiz autoritaire côté serveur.                   | 5 questions par partie, 4 choix, 20 secondes par question, sans bonus de rapidité.                                                |
+| V1-04 | Jouer un quiz autoritaire côté serveur.                   | 5 questions par partie, 4 choix, 20 secondes par question, 3 secondes de révélation, sans bonus de rapidité.                       |
 | V1-05 | Valider et noter les réponses côté serveur.               | Une réponse par joueur et question; réponse juste = 100 points, sinon 0; retards et choix invalides rejetés.                      |
-| V1-06 | Révéler la réponse au moment prévu et terminer la partie. | La bonne réponse n'est pas envoyée avant la révélation; le classement vient des scores serveur et les égalités partagent le rang. |
+| V1-06 | Révéler la réponse au moment prévu et terminer la partie. | La bonne réponse est affichée pendant 3 secondes; le classement vient des scores serveur et les égalités partagent le rang.         |
 | V1-07 | Gérer les déconnexions et la reconnexion.                 | L'identité logique est indépendante du socket; reconnexion possible pendant 60 secondes.                                          |
 | V1-08 | Valider les événements et protéger les actions sensibles. | Payloads validés à l'exécution; rôle, identité et état de salle contrôlés côté serveur.                                           |
 | V1-09 | Fournir une interface accessible au parcours complet.     | Création/jonction, lobby, quiz, résultats et états d'erreur sont utilisables au clavier et sur écran étroit.                      |

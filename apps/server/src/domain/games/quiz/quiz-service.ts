@@ -3,6 +3,7 @@ import {
   POINTS_PER_CORRECT_ANSWER,
   QUESTIONS_PER_GAME,
   QUESTION_DURATION_MS,
+  REVEAL_DURATION_MS,
   type QuestionReveal,
   type QuestionStart,
   type RankingEntry,
@@ -116,7 +117,10 @@ export class QuizService {
   }
 
   getCurrentQuestion(roomCode: string): QuestionStart | undefined {
-    return this.games.get(roomCode)?.currentQuestion;
+    const question = this.games.get(roomCode)?.currentQuestion;
+    return question
+      ? { ...question, serverNow: this.deps.now() }
+      : undefined;
   }
 
   submitAnswer(
@@ -194,7 +198,7 @@ export class QuizService {
   private revealQuestion(roomCode: string): void {
     const game = this.games.get(roomCode);
     const room = this.roomService.getRoom(roomCode);
-    if (!game || !room) {
+    if (!game || !room || !game.currentQuestion) {
       this.games.delete(roomCode);
       return;
     }
@@ -223,6 +227,23 @@ export class QuizService {
       },
     });
 
+    game.currentQuestion = undefined;
+    game.answers.clear();
+    game.cancelTimer = this.deps.schedule(
+      () => this.advanceAfterReveal(roomCode),
+      REVEAL_DURATION_MS,
+    );
+  }
+
+  private advanceAfterReveal(roomCode: string): void {
+    const game = this.games.get(roomCode);
+    const room = this.roomService.getRoom(roomCode);
+    if (!game || !room) {
+      this.games.delete(roomCode);
+      return;
+    }
+
+    game.cancelTimer = () => undefined;
     if (game.questionIndex === game.questions.length - 1) {
       room.status = 'results';
       this.games.delete(roomCode);
@@ -234,7 +255,6 @@ export class QuizService {
     }
 
     game.questionIndex += 1;
-    game.answers.clear();
     const nextQuestion = this.startQuestion(roomCode, game);
     this.emit(roomCode, { type: 'question:started', payload: nextQuestion });
   }

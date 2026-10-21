@@ -471,7 +471,10 @@ describe('room Socket.IO handlers', () => {
       expect(revealed.scores[joined.session.playerId]).toBe(0);
 
       if (nextQuestion) {
+        advanceQuizTimer();
         currentQuestion = await nextQuestion;
+      } else {
+        advanceQuizTimer();
       }
     }
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 import {
   QUESTIONS_PER_GAME,
   QUESTION_DURATION_MS,
+  REVEAL_DURATION_MS,
 } from '@nodigloo/shared';
 import { QuizService, type QuizEvent } from './quiz-service.js';
 import { QUESTION_BANK } from './question-bank.js';
@@ -42,13 +43,31 @@ const makeGame = () => {
   roomService.startGame(room.code, alice.id, 'socket-1');
 
   return {
-    advanceToNextQuestion: () => {
-      const timer = timers.shift();
+    advanceTimer: () => {
+      let timer = timers.shift();
+      while (timer?.cancelled) {
+        timer = timers.shift();
+      }
       if (!timer) {
-        throw new Error('Aucun chronomètre de question');
+        throw new Error('Aucun chronomètre de quiz');
       }
       now += timer.delayMs;
       timer.callback();
+    },
+    advanceToNextQuestion: () => {
+      const advanceTimer = () => {
+        let timer = timers.shift();
+        while (timer?.cancelled) {
+          timer = timers.shift();
+        }
+        if (!timer) {
+          throw new Error('Aucun chronomètre de quiz');
+        }
+        now += timer.delayMs;
+        timer.callback();
+      };
+      advanceTimer();
+      advanceTimer();
     },
     events,
     quizService,
@@ -126,6 +145,39 @@ describe('QuizService', () => {
       ]);
     }
     expect(fixture.room.status).toBe('results');
+  });
+
+  it('laisse trois secondes pour afficher la révélation avant la suite', () => {
+    const fixture = makeGame();
+    fixture.quizService.startGame(fixture.room);
+
+    fixture.advanceTimer();
+
+    expect(
+      fixture.events.some((entry) => entry.event.type === 'question:revealed'),
+    ).toBe(true);
+    expect(fixture.quizService.getCurrentQuestion(fixture.room.code)).toBeUndefined();
+    expect(fixture.timers[0].delayMs).toBe(REVEAL_DURATION_MS);
+    expect(fixture.room.status).toBe('playing');
+
+    fixture.advanceTimer();
+
+    expect(
+      fixture.quizService.getCurrentQuestion(fixture.room.code)?.questionNumber,
+    ).toBe(2);
+  });
+
+  it('renvoie le temps serveur actuel quand un joueur reprend en cours de question', () => {
+    const fixture = makeGame();
+    fixture.quizService.startGame(fixture.room);
+    fixture.setNow(5_000);
+
+    const resumedQuestion = fixture.quizService.getCurrentQuestion(
+      fixture.room.code,
+    );
+
+    expect(resumedQuestion?.serverNow).toBe(5_000);
+    expect(resumedQuestion?.endsAt).toBe(21_000);
   });
 
   it('annule les chronomètres quand le service s’arrête', () => {
@@ -241,8 +293,11 @@ describe('QuizService', () => {
     ).toThrow(expect.objectContaining({ code: 'ANSWER_TOO_LATE' }));
 
     expect(fixture.timers[0].cancelled).toBe(true);
-    expect(fixture.quizService.getCurrentQuestion(fixture.room.code)?.questionNumber)
-      .toBe(2);
+    expect(fixture.quizService.getCurrentQuestion(fixture.room.code)).toBeUndefined();
+    fixture.advanceTimer();
+    expect(
+      fixture.quizService.getCurrentQuestion(fixture.room.code)?.questionNumber,
+    ).toBe(2);
   });
 
   it('refuse un identifiant qui ne correspond pas à la question active', () => {
