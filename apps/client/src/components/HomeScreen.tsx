@@ -1,26 +1,60 @@
-import type { FormEvent } from 'react';
-import type { PendingAction } from '../types';
+import { useState, type FormEvent } from 'react';
+import { useRoom } from '../context/RoomContext';
+import { getServerError } from '../lib/socketHelpers';
 import { IglooIllustration } from './IglooIllustration';
 
-type HomeScreenProps = {
-  nickname: string;
-  roomCode: string;
-  pending: PendingAction;
-  onNicknameChange: (value: string) => void;
-  onRoomCodeChange: (value: string) => void;
-  onCreate: (event: FormEvent<HTMLFormElement>) => void;
-  onJoin: (event: FormEvent<HTMLFormElement>) => void;
-};
+export function HomeScreen() {
+  const { resuming, setError, getSocket, enterRoom } = useRoom();
+  const [nickname, setNickname] = useState('');
+  const [roomCode, setRoomCode] = useState('');
+  const [pending, setPending] = useState<'create' | 'join' | null>(null);
+  const busy = pending !== null || resuming;
 
-export function HomeScreen({
-  nickname,
-  roomCode,
-  pending,
-  onNicknameChange,
-  onRoomCodeChange,
-  onCreate,
-  onJoin,
-}: HomeScreenProps) {
+  const createRoom = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    setPending('create');
+
+    try {
+      const socket = await getSocket();
+      const result = await socket.timeout(8_000).emitWithAck('room:create', {
+        nickname: nickname.trim(),
+      });
+      if (!result.ok) {
+        setError(result.error.message);
+        return;
+      }
+      enterRoom(result.data);
+    } catch (caught) {
+      setError(getServerError(caught));
+    } finally {
+      setPending(null);
+    }
+  };
+
+  const joinRoom = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    setPending('join');
+
+    try {
+      const socket = await getSocket();
+      const result = await socket.timeout(8_000).emitWithAck('room:join', {
+        code: roomCode.trim().toUpperCase(),
+        nickname: nickname.trim(),
+      });
+      if (!result.ok) {
+        setError(result.error.message);
+        return;
+      }
+      enterRoom(result.data);
+    } catch (caught) {
+      setError(getServerError(caught));
+    } finally {
+      setPending(null);
+    }
+  };
+
   return (
     <>
       <section className="home-hero">
@@ -42,7 +76,7 @@ export function HomeScreen({
         <IglooIllustration />
       </section>
 
-      {pending === 'resume' && (
+      {resuming && (
         <p className="notice notice-info" role="status">
           Retrouvons ta salle…
         </p>
@@ -60,7 +94,7 @@ export function HomeScreen({
         </div>
 
         <div className="entry-grid">
-          <form className="entry-card" onSubmit={onCreate}>
+          <form className="entry-card" onSubmit={createRoom}>
             <div className="card-icon" aria-hidden="true">
               +
             </div>
@@ -77,20 +111,20 @@ export function HomeScreen({
               maxLength={20}
               required
               value={nickname}
-              onChange={(event) => onNicknameChange(event.target.value)}
+              onChange={(event) => setNickname(event.target.value)}
               placeholder="Ex. Camille"
             />
             <button
               className="button button-primary"
               type="submit"
-              disabled={pending !== null}
+              disabled={busy}
             >
               {pending === 'create' ? 'Ouverture…' : 'Créer ma salle'}
               <span aria-hidden="true">↗</span>
             </button>
           </form>
 
-          <form className="entry-card entry-card-join" onSubmit={onJoin}>
+          <form className="entry-card entry-card-join" onSubmit={joinRoom}>
             <div className="card-icon card-icon-join" aria-hidden="true">
               ↗
             </div>
@@ -107,7 +141,7 @@ export function HomeScreen({
               maxLength={20}
               required
               value={nickname}
-              onChange={(event) => onNicknameChange(event.target.value)}
+              onChange={(event) => setNickname(event.target.value)}
               placeholder="Ex. Camille"
             />
             <label htmlFor="room-code">Code de la salle</label>
@@ -120,14 +154,14 @@ export function HomeScreen({
               required
               value={roomCode}
               onChange={(event) =>
-                onRoomCodeChange(event.target.value.toUpperCase())
+                setRoomCode(event.target.value.toUpperCase())
               }
               placeholder="ABCDE"
             />
             <button
               className="button button-secondary"
               type="submit"
-              disabled={pending !== null}
+              disabled={busy}
             >
               {pending === 'join' ? 'Connexion…' : 'Rejoindre la salle'}
               <span aria-hidden="true">→</span>

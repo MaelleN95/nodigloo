@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { QUESTION_DURATION_MS } from '@nodigloo/shared';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { Footer } from './components/Footer';
@@ -27,11 +27,8 @@ export function App() {
     error,
     setError,
     getSocket,
-    enterRoom,
     leaveRoom,
   } = useRoom();
-  const [nickname, setNickname] = useState('');
-  const [roomCode, setRoomCode] = useState('');
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(
     QUESTION_DURATION_MS / 1000,
@@ -59,51 +56,6 @@ export function App() {
     const interval = window.setInterval(updateCountdown, 250);
     return () => window.clearInterval(interval);
   }, [question, reveal]);
-
-  const createRoom = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError(null);
-    setPending('create');
-
-    try {
-      const socket = await getSocket();
-      const result = await socket.timeout(8_000).emitWithAck('room:create', {
-        nickname: nickname.trim(),
-      });
-      if (!result.ok) {
-        setError(result.error.message);
-        return;
-      }
-      enterRoom(result.data);
-    } catch (caught) {
-      setError(getServerError(caught));
-    } finally {
-      setPending(null);
-    }
-  };
-
-  const joinRoom = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError(null);
-    setPending('join');
-
-    try {
-      const socket = await getSocket();
-      const result = await socket.timeout(8_000).emitWithAck('room:join', {
-        code: roomCode.trim().toUpperCase(),
-        nickname: nickname.trim(),
-      });
-      if (!result.ok) {
-        setError(result.error.message);
-        return;
-      }
-      enterRoom(result.data);
-    } catch (caught) {
-      setError(getServerError(caught));
-    } finally {
-      setPending(null);
-    }
-  };
 
   const startGame = async () => {
     setError(null);
@@ -177,17 +129,7 @@ export function App() {
       <Routes>
         <Route
           path="/"
-          element={
-            <HomeScreen
-              nickname={nickname}
-              roomCode={roomCode}
-              pending={resuming ? 'resume' : pending}
-              onNicknameChange={setNickname}
-              onRoomCodeChange={setRoomCode}
-              onCreate={createRoom}
-              onJoin={joinRoom}
-            />
-          }
+          element={<HomeScreen />}
         />
         <Route
           path="/room/:code"
