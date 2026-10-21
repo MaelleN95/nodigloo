@@ -57,22 +57,6 @@ export function App() {
     return () => window.clearInterval(interval);
   }, [question, reveal]);
 
-  const startGame = async () => {
-    setError(null);
-    setPending('start');
-    try {
-      const socket = await getSocket();
-      const result = await socket.timeout(8_000).emitWithAck('game:start');
-      if (!result.ok) {
-        setError(result.error.message);
-      }
-    } catch (caught) {
-      setError(getServerError(caught));
-    } finally {
-      setPending(null);
-    }
-  };
-
   const submitAnswer = async (choice: number) => {
     if (!question || selectedChoice !== null || pending === 'answer') {
       return;
@@ -103,7 +87,6 @@ export function App() {
   const currentPlayer = room?.players.find(
     (player) => player.id === session?.playerId,
   );
-  const isHost = Boolean(room && session && room.hostId === session.playerId);
   const finalRanking = ranking ?? (room ? getFallbackRanking(room) : []);
 
   // Pas de salle (URL tapée à la main, session expirée) : retour à l'accueil, sauf si on est en train de reprendre la session.
@@ -137,9 +120,6 @@ export function App() {
             <LobbyScreen
               room={currentRoom}
               playerId={currentSession.playerId}
-              isHost={isHost}
-              pending={pending}
-              onStart={() => void startGame()}
             />
           ))}
         />

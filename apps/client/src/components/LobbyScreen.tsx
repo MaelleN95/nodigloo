@@ -1,24 +1,36 @@
+import { useState } from 'react';
 import { MAX_PLAYERS, MIN_PLAYERS, type RoomPublic } from '@nodigloo/shared';
-import type { PendingAction } from '../types';
+import { useRoom } from '../context/RoomContext';
+import { getServerError } from '../lib/socketHelpers';
 
 type LobbyScreenProps = {
   room: RoomPublic;
   playerId: string;
-  isHost: boolean;
-  pending: PendingAction;
-  onStart: () => void;
 };
 
-export function LobbyScreen({
-  room,
-  playerId,
-  isHost,
-  pending,
-  onStart,
-}: LobbyScreenProps) {
+export function LobbyScreen({ room, playerId }: LobbyScreenProps) {
+  const { setError, getSocket } = useRoom();
+  const [starting, setStarting] = useState(false);
+  const isHost = room.hostId === playerId;
   const connectedPlayers = room.players.filter(
     (player) => player.connected,
   ).length;
+
+  const startGame = async () => {
+    setError(null);
+    setStarting(true);
+    try {
+      const socket = await getSocket();
+      const result = await socket.timeout(8_000).emitWithAck('game:start');
+      if (!result.ok) {
+        setError(result.error.message);
+      }
+    } catch (caught) {
+      setError(getServerError(caught));
+    } finally {
+      setStarting(false);
+    }
+  };
 
   return (
     <section className="game-panel" aria-labelledby="lobby-title">
@@ -75,10 +87,10 @@ export function LobbyScreen({
           <button
             className="button button-primary"
             type="button"
-            onClick={onStart}
-            disabled={pending !== null || connectedPlayers < MIN_PLAYERS}
+            onClick={() => void startGame()}
+            disabled={starting || connectedPlayers < MIN_PLAYERS}
           >
-            {pending === 'start' ? 'Préparation…' : 'Lancer le quiz'}
+            {starting ? 'Préparation…' : 'Lancer le quiz'}
             <span aria-hidden="true">↗</span>
           </button>
           {connectedPlayers < MIN_PLAYERS && (
