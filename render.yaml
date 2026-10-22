@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: nodigloo-server
+    runtime: docker
+    plan: free
+    dockerfilePath: ./apps/server/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CLIENT_ORIGINS
+        sync: false
+      - key: ATTEMPT_LIMIT_MAX
+        value: "30"
+      - key: ATTEMPT_LIMIT_WINDOW_SECONDS
+        value: "60"

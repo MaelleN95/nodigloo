@@ -87,4 +87,4 @@ Les valeurs locales sont documentées dans `.env.example`. Le serveur lit son en
 
 `VITE_SERVER_URL` est l'adresse Socket.IO intégrée au site lors du build Docker. Par défaut, le navigateur joint le serveur sur `http://localhost:3001`. Si le port externe du serveur change, ajuste aussi cette URL dans `.env`. Aucun secret n'est requis pour exécuter le projet localement.
 
-La cible de publication éventuelle (frontend statique et backend séparé) sera traitée après la validation locale de la V1; elle n'est pas nécessaire pour développer ni tester.
+Le déploiement public prévu utilise Vercel pour le frontend et Render pour le backend, avec leurs adresses gratuites. Les réglages et les limites sont dans le [guide de déploiement](docs/deploiement.md). Ce déploiement reste indépendant du lancement local avec Docker.

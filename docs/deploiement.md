@@ -6,6 +6,29 @@ Le frontend est prévu sur Vercel et le backend sur Render, sans domaine acheté
 - Render fournit une adresse HTTPS en `.onrender.com` et accepte les connexions Socket.IO.
 - Les salles restent en mémoire dans une seule instance du backend.
 
+## Backend sur Render
+
+Le fichier [render.yaml](../render.yaml) décrit un service web Docker gratuit. Il réutilise le [Dockerfile du serveur](../apps/server/Dockerfile), avec la racine du dépôt comme contexte de build.
+
+1. Dans Render, choisir **New > Blueprint**, puis sélectionner le dépôt et la branche à déployer.
+2. Vérifier que Render utilise `render.yaml` et propose bien le plan **Free**.
+3. Fournir `CLIENT_ORIGINS` : l'adresse de production stable Vercel, sans chemin ni barre oblique finale. Le champ est demandé pendant la création, car cette valeur dépend du projet.
+4. Créer le service et attendre que le déploiement soit sain.
+5. Noter son adresse publique HTTPS en `.onrender.com`. Ouvrir cette adresse suivie de `/health` : elle doit répondre `{"status":"ok"}`.
+6. Utiliser cette adresse comme `VITE_SERVER_URL` sur Vercel.
+
+Si l'adresse Vercel n'existe pas encore, créer d'abord le projet Vercel pour obtenir son adresse. Le premier build peut afficher le site sans connexion fonctionnelle au jeu. Après création de Render, renseigner `VITE_SERVER_URL` et redéployer le frontend avant de le partager.
+
+Ne pas renseigner de commande de démarrage personnalisée : le Dockerfile la fournit déjà. Ne pas fixer `PORT` à 3001 : le serveur utilise le port fourni par Render.
+
+Les déploiements automatiques du backend sont désactivés (`autoDeployTrigger: off`). Un déploiement manuel depuis Render évite de couper une partie en cours à chaque commit poussé. Ne lancer qu'une instance : les salles ne sont pas partagées entre plusieurs serveurs.
+
+### IP derrière le proxy : contrôle restant
+
+Le limiteur utilise actuellement `socket.handshake.address`, l'adresse de la connexion directe. Sur Render, cette adresse peut être celle du proxy : plusieurs joueurs risquent alors de partager le même quota.
+
+Avant une ouverture large, vérifier le comportement réel du proxy et adapter l'identification des clients avec une règle de confiance explicite. Ne pas prendre arbitrairement la première valeur de `X-Forwarded-For` : une valeur fournie par le client ne doit pas permettre de contourner le quota.
+
 ## Frontend sur Vercel
 
 1. Importer le dépôt Git dans Vercel.
@@ -42,6 +65,7 @@ Sans `VITE_SERVER_URL`, le client utilise `http://localhost:3001`, ce qui ne con
 - Recharger une route `/room/...` ne provoque pas de page 404.
 - Les fichiers du logo et du favicon sont servis normalement.
 - Tester une reconnexion et le premier accès après une période d'inactivité.
+- Vérifier l'identification des IP derrière le proxy et le quota de tentatives de plusieurs joueurs.
 
 Le tag `v1.0.0` sera proposé après ces vérifications. La configuration locale Docker reste indépendante de ces hébergements.
 
@@ -50,3 +74,4 @@ Le tag `v1.0.0` sera proposé après ces vérifications. La configuration locale
 - [Vite sur Vercel, notamment les routes SPA](https://vercel.com/docs/frameworks/frontend/vite)
 - [Limites des services gratuits Render](https://render.com/docs/free)
 - [WebSocket sur Render](https://render.com/docs/websocket)
+- [Configuration des Blueprints Render](https://render.com/docs/blueprint-spec)
