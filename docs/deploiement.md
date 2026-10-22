@@ -1,10 +1,16 @@
 # Déploiement public
 
-Le frontend est prévu sur Vercel et le backend sur Render, sans domaine acheté :
+Le frontend est hébergé sur Vercel et le backend sur Render, sans domaine acheté :
 
 - Vercel fournit une adresse HTTPS en `.vercel.app`.
 - Render fournit une adresse HTTPS en `.onrender.com` et accepte les connexions Socket.IO.
 - Les salles restent en mémoire dans une seule instance du backend.
+
+Adresses de production :
+
+- Frontend : <https://nodigloo.vercel.app>
+- Backend : <https://nodigloo-server.onrender.com>
+- Santé du backend : <https://nodigloo-server.onrender.com/health>
 
 ## Backend sur Render
 
@@ -48,6 +54,19 @@ Avant une ouverture large, vérifier le comportement réel du proxy et adapter l
 Ne pas autoriser toutes les origines en ajoutant un joker CORS. Les adresses temporaires des previews Vercel ne sont pas autorisées automatiquement : le premier parcours public se teste sur l'adresse de production stable.
 
 Sans `VITE_SERVER_URL`, le client utilise `http://localhost:3001`, ce qui ne convient pas à un site public.
+
+### Pièges de configuration
+
+| Plateforme | Variable | Valeur |
+| --- | --- | --- |
+| Vercel, Production | `VITE_SERVER_URL` | `https://nodigloo-server.onrender.com` |
+| Render | `CLIENT_ORIGINS` | `https://nodigloo.vercel.app` |
+
+- Sur Vercel, choisir le type **Configuration / Config** : cette URL n'est pas un secret et le préfixe `VITE_` la rend accessible au navigateur.
+- Garder `https://` dans les deux valeurs.
+- Ne pas ajouter de `/` final à `CLIENT_ORIGINS`. Le navigateur transmet une origine sans chemin, et le serveur compare les valeurs exactement : `https://nodigloo.vercel.app/` est refusée.
+- Redéployer la production Vercel après modification de sa variable. Un aperçu Preview n'actualise pas nécessairement l'adresse de production.
+- Redémarrer ou redéployer Render après modification de son environnement : les valeurs sont lues au démarrage.
 
 ## Limites de Render gratuit
 

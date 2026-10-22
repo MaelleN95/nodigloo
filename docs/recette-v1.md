@@ -40,3 +40,28 @@ Recette faite le 22 octobre 2026 sur la version construite (`docker compose up -
 Le build Docker et le démarrage ont aussi été vérifiés depuis un clone Git local neuf du commit `6111a40`, avec le cache Docker existant. Le contrôle de reproductibilité restant pour l'étape 14 est levé.
 
 La suite choisie est le déploiement public sur Vercel et Render, décrit dans le [guide de déploiement](deploiement.md). Le tag annoté `v1.0.0` sera proposé après vérification du parcours sur les adresses publiques.
+
+## Vérifications publiques
+
+Vérifications effectuées le 22 octobre 2026 sur <https://nodigloo.vercel.app> et <https://nodigloo-server.onrender.com>.
+
+| Vérification | Résultat |
+| --- | --- |
+| `/health` avec l'origine Vercel | HTTP 200, origine autorisée exacte |
+| Adresse du backend dans le bundle frontend actif | URL HTTPS Render présente, ancienne URL `localhost:3001` absente |
+| Accès direct à une route React | La page d'entrée est servie |
+| Création de salle et rechargement du salon dans le navigateur | OK, joueur reconnecté dans le salon |
+| Création, jonction et reprise de session avec deux clients Socket.IO publics | OK |
+| Partie complète avec deux clients Socket.IO | Cinq questions, cinq réponses par joueur, cinq révélations |
+| Scores calculés à partir des révélations | 200 points attendus et reçus pour chaque joueur ; les deux partagent le rang 1 |
+| Transport réseau en fin de partie | WebSocket pour les deux clients |
+
+Le parcours navigateur public complet n'a pas été validé : l'outil navigateur a perdu l'accès aux pages pendant les essais. La partie complète ci-dessus a été vérifiée par des clients Socket.IO, pas par deux parcours d'interface.
+
+Restent à vérifier avant de clore la recette publique :
+
+- le parcours complet dans l'interface publique ;
+- le réveil après mise en veille Render ;
+- l'identification des IP derrière le proxy et le quota de tentatives.
+
+Aucun tag de version n'est encore posé.
