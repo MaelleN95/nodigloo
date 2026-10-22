@@ -133,8 +133,8 @@ export function LobbyScreen({ room, playerId }: LobbyScreenProps) {
       )}
       <p className="description">
         {isHost
-          ? 'Partage le code avec tes amis. Le quiz peut commencer dès que vous êtes au moins deux.'
-          : 'La salle est prête. L’hôte lancera le quiz quand tout le monde sera arrivé.'}
+          ? 'Partage le code avec tes amis. La partie peut commencer dès que vous êtes au moins deux.'
+          : 'La salle est prête. L’hôte lancera la partie quand tout le monde sera arrivé.'}
       </p>
 
       <div className="players-heading">
@@ -175,7 +175,7 @@ export function LobbyScreen({ room, playerId }: LobbyScreenProps) {
             onClick={() => void startGame()}
             disabled={starting || leaving || connectedPlayers < MIN_PLAYERS}
           >
-            {starting ? 'Préparation…' : 'Lancer le quiz'}
+            {starting ? 'Préparation…' : 'Lancer la partie'}
             <span aria-hidden="true">↗</span>
           </button>
           {connectedPlayers < MIN_PLAYERS && (

@@ -69,8 +69,7 @@ export function HomeScreen() {
             <span>on joue.</span>
           </h1>
           <p className="description">
-            Retrouve tes amis dans un refuge bien au chaud et découvre qui a la
-            meilleure mémoire.
+            Retrouve tes amis dans un refuge bien au chaud et amusez-vous !
           </p>
         </div>
         <IglooIllustration />
@@ -85,7 +84,7 @@ export function HomeScreen() {
       <section className="entry-panel" aria-labelledby="entry-title">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">PREMIER PAS</p>
+            <p className="eyebrow">PREMIÈRE ÉTAPE</p>
             <h2 id="entry-title">On se retrouve où ?</h2>
           </div>
           <span className="step-number" aria-hidden="true">
@@ -112,7 +111,7 @@ export function HomeScreen() {
               required
               value={nickname}
               onChange={(event) => setNickname(event.target.value)}
-              placeholder="Ex. Camille"
+              placeholder="Ex. Maëlle"
             />
             <button
               className="button button-primary"
@@ -142,7 +141,7 @@ export function HomeScreen() {
               required
               value={nickname}
               onChange={(event) => setNickname(event.target.value)}
-              placeholder="Ex. Camille"
+              placeholder="Ex. Maëlle"
             />
             <label htmlFor="room-code">Code de la salle</label>
             <input
