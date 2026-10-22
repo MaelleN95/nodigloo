@@ -9,8 +9,9 @@ type LobbyScreenProps = {
 };
 
 export function LobbyScreen({ room, playerId }: LobbyScreenProps) {
-  const { setError, getSocket } = useRoom();
+  const { setError, getSocket, leaveRoom } = useRoom();
   const [starting, setStarting] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const [copyState, setCopyState] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle');
   const isHost = room.hostId === playerId;
   const connectedPlayers = room.players.filter(
@@ -42,7 +43,31 @@ export function LobbyScreen({ room, playerId }: LobbyScreenProps) {
     }
   };
 
+  const quitLobby = async () => {
+    if (starting || leaving) {
+      return;
+    }
+    setError(null);
+    setLeaving(true);
+    try {
+      const socket = await getSocket();
+      const result = await socket.timeout(8_000).emitWithAck('room:leave');
+      if (!result.ok) {
+        setError(result.error.message);
+        return;
+      }
+      leaveRoom();
+    } catch (caught) {
+      setError(getServerError(caught));
+    } finally {
+      setLeaving(false);
+    }
+  };
+
   const startGame = async () => {
+    if (starting || leaving) {
+      return;
+    }
     setError(null);
     setStarting(true);
     try {
@@ -148,7 +173,7 @@ export function LobbyScreen({ room, playerId }: LobbyScreenProps) {
             className="button button-primary"
             type="button"
             onClick={() => void startGame()}
-            disabled={starting || connectedPlayers < MIN_PLAYERS}
+            disabled={starting || leaving || connectedPlayers < MIN_PLAYERS}
           >
             {starting ? 'Préparation…' : 'Lancer le quiz'}
             <span aria-hidden="true">↗</span>
@@ -165,6 +190,22 @@ export function LobbyScreen({ room, playerId }: LobbyScreenProps) {
           En attente du lancement par l’hôte…
         </p>
       )}
+      <div className="lobby-back">
+        <button
+          className="lobby-back-button"
+          type="button"
+          onClick={() => void quitLobby()}
+          disabled={starting || leaving}
+        >
+          <span aria-hidden="true">←</span>
+          {leaving ? 'Sortie…' : 'Retour à l’accueil'}
+        </button>
+        <p className="field-hint">
+          Tu quittes la salle et libères ta place.
+          {isHost && room.players.length > 1 &&
+            ' Un autre joueur reprendra le rôle d’hôte.'}
+        </p>
+      </div>
     </section>
   );
 }

@@ -69,3 +69,5 @@ Codes d'erreur possibles : `INVALID_PAYLOAD`, `ROOM_NOT_FOUND`, `ROOM_FULL`, `GA
 8. Vérifier le classement : les scores sont de 100 points par bonne réponse, et la ligne du joueur connecté est mise en avant.
 9. Tester la reconnexion : pendant une question, recharger un onglet. Il doit revenir sur la question en cours. En coupant le serveur (`docker compose stop server`), la pastille passe à « Reconnexion… ».
 10. Cliquer sur « Terminer cette partie » pour revenir à l'accueil.
+
+Avant de lancer une partie, chaque joueur peut utiliser « Retour à l'accueil » dans le salon. Cette action discrète quitte la salle ; « Lancer la partie » reste l'action principale de l'hôte. Vérifier que la place disparaît immédiatement dans l'autre onglet, et que le départ de l'hôte transfère son rôle au joueur connecté le plus ancien. Quitter seul supprime la salle. Une déconnexion involontaire conserve toujours le délai de reconnexion de 60 secondes.

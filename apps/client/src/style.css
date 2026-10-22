@@ -494,6 +494,40 @@ p {
   letter-spacing: 0.14em;
 }
 
+.lobby-back {
+  margin-top: 24px;
+}
+
+.lobby-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 8px 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: normal;
+}
+
+.lobby-back-button:hover:not(:disabled) {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.lobby-back-button:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 3px;
+}
+
+.lobby-back-button:disabled {
+  opacity: 0.5;
+}
+
 .players-heading {
   margin: 32px 0 12px;
 }
