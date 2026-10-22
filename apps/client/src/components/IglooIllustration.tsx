@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+import type { createIglooScene } from '../lib/iglooScene';
 
 export function IglooIllustration() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
+  const [animationEnabled, setAnimationEnabled] = useState(false);
+  const sceneRef = useRef<ReturnType<typeof createIglooScene>>();
 
   useEffect(() => {
     const container = containerRef.current;
@@ -10,14 +13,17 @@ export function IglooIllustration() {
       return;
     }
     let cancelled = false;
-    let dispose: (() => void) | undefined;
 
     void import('../lib/iglooScene')
       .then(({ createIglooScene }) => {
         if (cancelled) {
           return;
         }
-        dispose = createIglooScene(container, () => setReady(false));
+        sceneRef.current = createIglooScene(
+          container,
+          () => setReady(false),
+          setAnimationEnabled,
+        );
         setReady(true);
       })
       .catch((error: unknown) => {
@@ -26,17 +32,31 @@ export function IglooIllustration() {
 
     return () => {
       cancelled = true;
-      dispose?.();
+      sceneRef.current?.dispose();
+      sceneRef.current = undefined;
     };
   }, []);
 
   return (
-    <div className="igloo-illustration" aria-hidden="true">
-      {!ready && <img className="igloo-fallback" src="/logo.png" alt="" />}
-      <div
-        ref={containerRef}
-        className={`igloo-scene${ready ? ' is-ready' : ''}`}
-      />
+    <div className="igloo-illustration">
+      <div className="igloo-visual" aria-hidden="true">
+        {!ready && <img className="igloo-fallback" src="/logo.png" alt="" />}
+        <div
+          ref={containerRef}
+          className={`igloo-scene${ready ? ' is-ready' : ''}`}
+        />
+      </div>
+      <div className="igloo-controls">
+        {ready && (
+          <button
+            type="button"
+            className="igloo-animation-button"
+            onClick={() => sceneRef.current?.setAnimationEnabled(!animationEnabled)}
+          >
+            {animationEnabled ? 'Désactiver le suivi de la souris' : 'Activer le suivi de la souris'}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

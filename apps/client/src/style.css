@@ -213,11 +213,40 @@ p {
 }
 
 .igloo-illustration {
-  position: relative;
   width: min(100%, 340px);
-  aspect-ratio: 1.2;
   justify-self: center;
   filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.3));
+}
+
+.igloo-visual {
+  position: relative;
+  aspect-ratio: 1.2;
+}
+
+.igloo-controls {
+  min-height: 44px;
+  text-align: center;
+}
+
+.igloo-animation-button {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.igloo-animation-button:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.igloo-animation-button:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 3px;
 }
 
 .igloo-scene {

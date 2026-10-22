@@ -43,13 +43,22 @@ function createIceBlock(thetaStart: number, thetaEnd: number, phiStart: number, 
   return geometry;
 }
 
-export function createIglooScene(container: HTMLDivElement, onContextLost: () => void) {
+export function createIglooScene(
+  container: HTMLDivElement,
+  onContextLost: () => void,
+  onAnimationChange: (enabled: boolean) => void,
+) {
   const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
   const scene = new THREE.Scene();
   let frame = 0;
   let resizeObserver: ResizeObserver | undefined;
   let visibilityObserver: IntersectionObserver | undefined;
-  const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let animationEnabled = true;
+  let angle = 0.43;
+  let height = 2.7;
+  let targetAngle = angle;
+  let targetHeight = height;
+  let previousTime: number | undefined;
   const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 30);
   let visible = true;
   let disposed = false;
@@ -62,7 +71,9 @@ export function createIglooScene(container: HTMLDivElement, onContextLost: () =>
     window.cancelAnimationFrame(frame);
     resizeObserver?.disconnect();
     visibilityObserver?.disconnect();
-    motion.removeEventListener('change', update);
+    window.removeEventListener('pointermove', pointerMoved);
+    document.removeEventListener('pointerleave', resetPointer);
+    window.removeEventListener('blur', resetPointer);
     document.removeEventListener('visibilitychange', update);
     renderer.domElement.removeEventListener('webglcontextlost', contextLost);
     const geometries = new Set<THREE.BufferGeometry>();
@@ -84,8 +95,13 @@ export function createIglooScene(container: HTMLDivElement, onContextLost: () =>
   };
 
   function draw(time: number) {
-    const angle = motion.matches ? 0.43 : 0.43 + Math.sin(time * 0.00022) * 0.09;
-    camera.position.set(Math.sin(angle) * 6.6, 2.7, Math.cos(angle) * 6.6);
+    if (animationEnabled) {
+      const delta = previousTime === undefined ? 1 / 60 : Math.min((time - previousTime) / 1000, 0.05);
+      angle = THREE.MathUtils.damp(angle, targetAngle, 5, delta);
+      height = THREE.MathUtils.damp(height, targetHeight, 5, delta);
+    }
+    previousTime = animationEnabled ? time : undefined;
+    camera.position.set(Math.sin(angle) * 6.6, height, Math.cos(angle) * 6.6);
     camera.lookAt(0, 0.6, 0.2);
     renderer.render(scene, camera);
   }
@@ -93,12 +109,43 @@ export function createIglooScene(container: HTMLDivElement, onContextLost: () =>
   function update() {
     window.cancelAnimationFrame(frame);
     if (disposed || !visible || document.hidden) {
+      previousTime = undefined;
       return;
     }
     draw(performance.now());
-    if (!motion.matches) {
+    if (animationEnabled && (Math.abs(angle - targetAngle) > 0.0001 || Math.abs(height - targetHeight) > 0.0001)) {
       frame = window.requestAnimationFrame(update);
+    } else {
+      previousTime = undefined;
     }
+  }
+
+  function pointerMoved(event: PointerEvent) {
+    if (!animationEnabled || event.pointerType !== 'mouse') {
+      return;
+    }
+    const x = THREE.MathUtils.clamp(event.clientX / window.innerWidth * 2 - 1, -1, 1);
+    const y = THREE.MathUtils.clamp(event.clientY / window.innerHeight * 2 - 1, -1, 1);
+    targetAngle = 0.43 + x * 0.16;
+    targetHeight = 2.7 - y * 0.25;
+    update();
+  }
+
+  function resetPointer() {
+    targetAngle = 0.43;
+    targetHeight = 2.7;
+    update();
+  }
+
+  function setAnimationEnabled(enabled: boolean) {
+    if (disposed) {
+      return;
+    }
+    animationEnabled = enabled;
+    onAnimationChange(enabled);
+    targetAngle = angle;
+    targetHeight = height;
+    update();
   }
 
   function contextLost(event: Event) {
@@ -233,11 +280,14 @@ export function createIglooScene(container: HTMLDivElement, onContextLost: () =>
       update();
     });
     visibilityObserver.observe(container);
-    motion.addEventListener('change', update);
+    window.addEventListener('pointermove', pointerMoved);
+    document.addEventListener('pointerleave', resetPointer);
+    window.addEventListener('blur', resetPointer);
     document.addEventListener('visibilitychange', update);
     renderer.domElement.addEventListener('webglcontextlost', contextLost);
+    onAnimationChange(animationEnabled);
     update();
-    return dispose;
+    return { dispose, setAnimationEnabled };
   } catch (error) {
     dispose();
     throw error;
