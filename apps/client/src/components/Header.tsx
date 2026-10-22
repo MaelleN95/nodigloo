@@ -18,7 +18,6 @@ export function Header({ connectionState }: HeaderProps) {
         <img className="wordmark-icon" src="/logo.png" alt="" />
       </Link>
       <div className="topbar-meta">
-        <span className="phase-tag">LE REFUGE DES JOUEURS</span>
         <span
           className={`connection-pill connection-${connectionState}`}
           role="status"

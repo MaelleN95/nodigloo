@@ -83,8 +83,6 @@ button:disabled {
   width: 96px;
   height: 62px;
   object-fit: contain;
-  border-radius: 5px;
-  background: #f5f1e8;
 }
 
 .topbar-meta {
