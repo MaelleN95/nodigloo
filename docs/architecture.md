@@ -20,6 +20,8 @@ Navigateur (React + Vite)              Serveur (Node + Express + Socket.IO)
 - Les types des événements sont dans `packages/shared`, partagés par le client et le serveur.
 - Tout est gardé en mémoire dans le serveur.
 
+L'illustration d'accueil est une scène Three.js décorative, chargée à la demande par `IglooIllustration`. Elle représente un igloo en blocs de glace avec une entrée ambrée et un léger mouvement de caméra. Le rendu s'arrête hors écran ou quand l'onglet est masqué ; la préférence de réduction des animations désactive le mouvement. Le logo sert de repli pendant le chargement ou si WebGL n'est pas disponible, avec une erreur dans la console en cas d'échec. Les ressources graphiques sont libérées au démontage du composant.
+
 ## Flux de connexion
 
 1. Le client ouvre une connexion Socket.IO quand le joueur crée ou rejoint une salle.
