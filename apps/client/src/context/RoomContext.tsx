@@ -22,7 +22,7 @@ import {
   saveSession,
   type StoredSession,
 } from '../lib/session';
-import { connectSocket, getServerError } from '../lib/socketHelpers';
+import { connectSocket, getServerError, type ConnectionOptions } from '../lib/socketHelpers';
 import { createNodiglooSocket, type NodiglooSocket } from '../socket';
 import type { ConnectionState } from '../types';
 
@@ -36,7 +36,7 @@ type RoomContextValue = {
   resuming: boolean;
   error: string | null;
   setError: (message: string | null) => void;
-  getSocket: () => Promise<NodiglooSocket>;
+  getSocket: (options?: ConnectionOptions) => Promise<NodiglooSocket>;
   enterRoom: (joined: JoinedRoom) => void;
   leaveRoom: () => void;
 };
@@ -200,12 +200,12 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const getSocket = async (): Promise<NodiglooSocket> => {
+  const getSocket = async (options?: ConnectionOptions): Promise<NodiglooSocket> => {
     const socket = socketRef.current;
     if (!socket) {
       throw new Error('La connexion au serveur n’est pas disponible.');
     }
-    await connectSocket(socket);
+    await connectSocket(socket, options);
     return socket;
   };
 

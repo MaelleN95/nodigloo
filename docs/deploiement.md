@@ -71,7 +71,7 @@ Sans `VITE_SERVER_URL`, le client utilise `http://localhost:3001`, ce qui ne con
 ## Limites de Render gratuit
 
 - Après 15 minutes sans trafic entrant, le service peut se mettre en veille.
-- Son réveil peut prendre environ une minute. Le client attend actuellement 10 secondes pour une connexion : une première tentative peut échouer pendant le réveil. Attendre que le backend réponde sur `/health`, puis réessayer.
+- Son réveil peut prendre environ une minute. Pour créer ou rejoindre une salle, le client attend la connexion jusqu'à deux minutes et laisse Socket.IO réessayer les erreurs de transport. Après trois secondes, un message explique l'attente : il n'est pas nécessaire de recliquer. Une fois connecté, le client envoie la demande une seule fois, avec un délai de réponse de huit secondes. Un refus explicite de connexion est signalé sans attendre deux minutes ; à expiration du délai, les tentatives de connexion sont arrêtées. Quitter l'accueil annule aussi une connexion encore en attente. Cela accompagne le réveil, sans empêcher la mise en veille ni garantir le délai de démarrage de Render.
 - Chaque redémarrage, mise en veille ou nouveau déploiement perd les salles et les scores.
 - Le quota annoncé est de 750 heures gratuites par mois et par workspace, partagé entre ses services gratuits. D'autres quotas s'appliquent aux builds et au trafic.
 - Cette offre convient à une démonstration ou à un projet personnel, pas à une disponibilité garantie.

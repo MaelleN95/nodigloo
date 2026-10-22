@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useRoom } from '../context/RoomContext';
 import { getServerError } from '../lib/socketHelpers';
 import { IglooIllustration } from './IglooIllustration';
@@ -8,15 +8,37 @@ export function HomeScreen() {
   const [nickname, setNickname] = useState('');
   const [roomCode, setRoomCode] = useState('');
   const [pending, setPending] = useState<'create' | 'join' | null>(null);
+  const [slowConnection, setSlowConnection] = useState(false);
+  const connectionAbort = useRef<AbortController | null>(null);
   const busy = pending !== null || resuming;
+
+  useEffect(() => () => connectionAbort.current?.abort(), []);
+
+  useEffect(() => {
+    if (pending === null) {
+      setSlowConnection(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setSlowConnection(true), 3_000);
+    return () => window.clearTimeout(timer);
+  }, [pending]);
+
+  const connectToRoomServer = async () => {
+    const controller = new AbortController();
+    connectionAbort.current = controller;
+    return getSocket({ timeoutMs: 120_000, signal: controller.signal });
+  };
 
   const createRoom = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (busy) {
+      return;
+    }
     setError(null);
     setPending('create');
 
     try {
-      const socket = await getSocket();
+      const socket = await connectToRoomServer();
       const result = await socket.timeout(8_000).emitWithAck('room:create', {
         nickname: nickname.trim(),
       });
@@ -26,7 +48,9 @@ export function HomeScreen() {
       }
       enterRoom(result.data);
     } catch (caught) {
-      setError(getServerError(caught));
+      if (!(caught instanceof DOMException && caught.name === 'AbortError')) {
+        setError(getServerError(caught));
+      }
     } finally {
       setPending(null);
     }
@@ -34,11 +58,14 @@ export function HomeScreen() {
 
   const joinRoom = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (busy) {
+      return;
+    }
     setError(null);
     setPending('join');
 
     try {
-      const socket = await getSocket();
+      const socket = await connectToRoomServer();
       const result = await socket.timeout(8_000).emitWithAck('room:join', {
         code: roomCode.trim().toUpperCase(),
         nickname: nickname.trim(),
@@ -49,7 +76,9 @@ export function HomeScreen() {
       }
       enterRoom(result.data);
     } catch (caught) {
-      setError(getServerError(caught));
+      if (!(caught instanceof DOMException && caught.name === 'AbortError')) {
+        setError(getServerError(caught));
+      }
     } finally {
       setPending(null);
     }
@@ -91,6 +120,13 @@ export function HomeScreen() {
             01
           </span>
         </div>
+
+        {pending !== null && slowConnection && (
+          <p className="notice notice-info" role="status">
+            Le serveur peut être en veille. La connexion peut prendre une à deux minutes.
+            {' '}Ta demande est conservée, inutile de recliquer.
+          </p>
+        )}
 
         <div className="entry-grid">
           <form className="entry-card" onSubmit={createRoom}>
