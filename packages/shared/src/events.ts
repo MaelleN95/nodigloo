@@ -58,6 +58,7 @@ export interface ClientToServerEvents {
     ack: (result: Ack<JoinedRoom>) => void,
   ) => void;
   'game:start': (ack: (result: Ack) => void) => void;
+  'room:leave': (ack: (result: Ack) => void) => void;
   'quiz:answer:submit': (
     payload: SubmitQuizAnswerPayload,
     ack: (result: Ack) => void,

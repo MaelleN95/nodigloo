@@ -63,6 +63,28 @@ export const registerRoomHandlers = (
     }
   });
 
+  socket.on('room:leave', async (ack) => {
+    if (typeof ack !== 'function') {
+      console.warn(`Missing acknowledgement for room:leave (${socket.id})`);
+      return;
+    }
+    try {
+      if (!membership) {
+        throw new DomainError('FORBIDDEN', 'Aucune salle à quitter');
+      }
+      const { roomCode, playerId } = membership;
+      const room = roomService.leaveLobby(roomCode, playerId, socket.id);
+      membership = undefined;
+      await socket.leave(roomCode);
+      if (room) {
+        socket.nsp.to(roomCode).emit('room:updated', toRoomPublic(room));
+      }
+      ack({ ok: true, data: undefined });
+    } catch (error) {
+      reportError(ack, error);
+    }
+  });
+
   socket.on('room:create', async (payload, ack) => {
     if (typeof ack !== 'function') {
       console.warn(`Missing acknowledgement for room:create (${socket.id})`);

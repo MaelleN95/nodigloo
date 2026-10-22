@@ -16,6 +16,66 @@ const makeService = () => {
   });
 };
 
+describe('RoomService.leaveLobby', () => {
+  it('supprime la salle quand son dernier joueur quitte', () => {
+    const service = makeService();
+    const { room, player } = service.createRoom('Alice', 'socket-1');
+    expect(service.leaveLobby(room.code, player.id, 'socket-1')).toBeUndefined();
+    expect(service.getRoom(room.code)).toBeUndefined();
+  });
+
+  it('libère immédiatement la place et le pseudonyme', () => {
+    const service = makeService();
+    const { room, player: host } = service.createRoom('Alice', 'socket-1');
+    const { player } = service.joinRoom(room.code, 'Bob', 'socket-2');
+    service.leaveLobby(room.code, player.id, 'socket-2');
+    expect(room.players.has(player.id)).toBe(false);
+    expect(room.hostId).toBe(host.id);
+    expect(() => service.joinRoom(room.code, 'Bob', 'socket-3')).not.toThrow();
+    expect(() => service.resumeSession(
+      room.code, player.id, player.reconnectToken, 'socket-4',
+    )).toThrow('Session expirée ou invalide');
+  });
+
+  it('transfère le rôle au plus ancien joueur connecté', () => {
+    const service = makeService();
+    const { room, player: host } = service.createRoom('Alice', 'socket-1');
+    const { player: bob } = service.joinRoom(room.code, 'Bob', 'socket-2');
+    const { player: charlie } = service.joinRoom(room.code, 'Charlie', 'socket-3');
+    service.markDisconnected(room.code, bob.id, 'socket-2');
+    service.leaveLobby(room.code, host.id, 'socket-1');
+    expect(room.hostId).toBe(charlie.id);
+    expect(room.players.size).toBe(2);
+  });
+
+  it('garde un hôte si tous les joueurs restants sont déconnectés', () => {
+    const service = makeService();
+    const { room, player: host } = service.createRoom('Alice', 'socket-1');
+    const { player: bob } = service.joinRoom(room.code, 'Bob', 'socket-2');
+    service.markDisconnected(room.code, bob.id, 'socket-2');
+    service.leaveLobby(room.code, host.id, 'socket-1');
+    expect(room.hostId).toBe(bob.id);
+  });
+
+  it('refuse un socket étranger sans retirer le joueur', () => {
+    const service = makeService();
+    const { room, player } = service.createRoom('Alice', 'socket-1');
+    expect(() => service.leaveLobby(room.code, player.id, 'autre-socket'))
+      .toThrow('Action réservée au joueur connecté');
+    expect(room.players.has(player.id)).toBe(true);
+  });
+
+  it('refuse de quitter ainsi une partie déjà lancée', () => {
+    const service = makeService();
+    const { room, player } = service.createRoom('Alice', 'socket-1');
+    service.joinRoom(room.code, 'Bob', 'socket-2');
+    service.startGame(room.code, player.id, 'socket-1');
+    expect(() => service.leaveLobby(room.code, player.id, 'socket-1'))
+      .toThrow('La partie a déjà commencé');
+    expect(room.players.size).toBe(2);
+  });
+});
+
 describe('RoomService.createRoom', () => {
   it('crée une salle en lobby avec le créateur comme hôte', () => {
     const service = makeService();

@@ -35,6 +35,7 @@ Client vers serveur (chacun répond par un accusé `{ ok: true, data }` ou `{ ok
 | --- | --- |
 | `room:create` | Crée une salle avec un pseudo. Le créateur est l'hôte. |
 | `room:join` | Rejoint une salle avec un code et un pseudo. |
+| `room:leave` | Quitte immédiatement un salon avant le lancement. La place et le pseudo sont libérés ; le rôle d'hôte est transféré si nécessaire et une salle vide est supprimée. |
 | `session:resume` | Reprend sa place après une coupure. |
 | `game:start` | Lance la partie (hôte seulement, 2 joueurs connectés minimum). |
 | `quiz:answer:submit` | Envoie le choix (0 à 3) pour la question en cours. |

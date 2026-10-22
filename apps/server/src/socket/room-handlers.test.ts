@@ -99,6 +99,58 @@ describe('room Socket.IO handlers', () => {
     timer.callback();
   };
 
+  it('retire immédiatement l’hôte qui quitte et prévient les invités', async () => {
+    const host = await connectClient();
+    const guest = await connectClient();
+    const created = requireSuccess(
+      await host.emitWithAck('room:create', { nickname: 'Alice' }),
+    );
+    const joined = requireSuccess(
+      await guest.emitWithAck('room:join', {
+        code: created.room.code,
+        nickname: 'Bob',
+      }),
+    );
+    const updated = new Promise<RoomPublic>((resolve) => {
+      guest.once('room:updated', resolve);
+    });
+
+    expect(await host.emitWithAck('room:leave')).toEqual({
+      ok: true, data: undefined,
+    });
+    expect(await updated).toMatchObject({
+      hostId: joined.session.playerId,
+      players: [{ id: joined.session.playerId }],
+    });
+    expect(host.connected).toBe(true);
+    const previousRoom = app.io.sockets.adapter.rooms.get(created.room.code);
+    expect(previousRoom?.has(host.id!)).toBe(false);
+    expect(await host.emitWithAck('game:start')).toMatchObject({
+      ok: false, error: { code: 'FORBIDDEN' },
+    });
+    requireSuccess(await host.emitWithAck('room:join', {
+      code: created.room.code, nickname: 'Alice',
+    }));
+    expect(await guest.emitWithAck('game:start')).toEqual({
+      ok: true, data: undefined,
+    });
+    expect(await guest.emitWithAck('room:leave')).toMatchObject({
+      ok: false, error: { code: 'GAME_ALREADY_STARTED' },
+    });
+  });
+
+  it('supprime la salle vide et refuse une seconde sortie', async () => {
+    const host = await connectClient();
+    const created = requireSuccess(
+      await host.emitWithAck('room:create', { nickname: 'Alice' }),
+    );
+    expect(await host.emitWithAck('room:leave')).toMatchObject({ ok: true });
+    expect(roomService.getRoom(created.room.code)).toBeUndefined();
+    expect(await host.emitWithAck('room:leave')).toMatchObject({
+      ok: false, error: { code: 'FORBIDDEN' },
+    });
+  });
+
   it('crée une salle et ne renvoie le token qu’à son propriétaire', async () => {
     const client = await connectClient();
     const result = requireSuccess(

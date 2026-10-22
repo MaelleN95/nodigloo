@@ -111,6 +111,34 @@ export class RoomService {
     return { room, player };
   }
 
+  leaveLobby(code: string, playerId: string, socketId: string): Room | undefined {
+    const room = this.rooms.get(normalizeRoomCode(code));
+    if (!room) {
+      throw new DomainError('ROOM_NOT_FOUND', 'Salle introuvable');
+    }
+    const player = room.players.get(playerId);
+    if (!player || player.socketId !== socketId) {
+      throw new DomainError('FORBIDDEN', 'Action réservée au joueur connecté');
+    }
+    if (room.status !== 'lobby') {
+      throw new DomainError('GAME_ALREADY_STARTED', 'La partie a déjà commencé');
+    }
+
+    room.players.delete(playerId);
+    const remaining = [...room.players.values()];
+    if (remaining.length === 0) {
+      this.rooms.delete(room.code);
+      return undefined;
+    }
+    if (room.hostId === playerId) {
+      const connected = remaining.filter((entry) => entry.socketId !== null);
+      room.hostId = (connected.length > 0 ? connected : remaining).reduce(
+        (oldest, entry) => entry.joinedAt < oldest.joinedAt ? entry : oldest,
+      ).id;
+    }
+    return room;
+  }
+
   startGame(code: string, playerId: string, socketId: string): Room {
     const room = this.rooms.get(normalizeRoomCode(code));
     if (!room) {
