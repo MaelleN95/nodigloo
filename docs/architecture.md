@@ -59,7 +59,7 @@ Codes d'erreur possibles : `INVALID_PAYLOAD`, `ROOM_NOT_FOUND`, `ROOM_FULL`, `GA
 ## Parcours de test manuel à deux joueurs
 
 1. Lancer le projet : `docker compose up -d --build`, puis ouvrir [http://localhost:8080](http://localhost:8080).
-2. Onglet 1 : saisir un pseudo (par exemple Alice) et créer une salle. Noter le code.
+2. Onglet 1 : saisir un pseudo (par exemple Alice) et créer une salle. Cliquer sur le code (ou utiliser Tab puis Entrée sur « Copier le code ») : une bulle « Code copié » apparaît sous l'encart pendant 2,5 secondes, sans décaler le salon. Le code reste sélectionnable pour une copie manuelle ; sélectionner du texte ne déclenche pas la copie automatique. Si le navigateur refuse la copie, un message invite à le copier manuellement.
 3. Onglet 2 : saisir un autre pseudo et le code, puis rejoindre. La session est gardée par onglet, donc un deuxième onglet normal suffit. Les deux joueurs apparaissent dans les deux onglets.
 4. Vérifier que seul l'onglet 1 (hôte) a le bouton « Lancer le quiz ». L'onglet 2 affiche « En attente du lancement par l'hôte… ».
 5. Lancer la partie. Les deux onglets passent à la première question avec le décompte.

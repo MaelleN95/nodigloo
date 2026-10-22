@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MAX_PLAYERS, MIN_PLAYERS, type RoomPublic } from '@nodigloo/shared';
 import { useRoom } from '../context/RoomContext';
 import { getServerError } from '../lib/socketHelpers';
@@ -11,10 +11,36 @@ type LobbyScreenProps = {
 export function LobbyScreen({ room, playerId }: LobbyScreenProps) {
   const { setError, getSocket } = useRoom();
   const [starting, setStarting] = useState(false);
+  const [copyState, setCopyState] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle');
   const isHost = room.hostId === playerId;
   const connectedPlayers = room.players.filter(
     (player) => player.connected,
   ).length;
+
+  useEffect(() => {
+    if (copyState !== 'copied') {
+      return;
+    }
+    const timeout = window.setTimeout(() => setCopyState('idle'), 2500);
+    return () => window.clearTimeout(timeout);
+  }, [copyState]);
+
+  const copyRoomCode = async () => {
+    if (copyState === 'copying') {
+      return;
+    }
+    setCopyState('copying');
+    try {
+      if (!navigator.clipboard?.writeText) {
+        setCopyState('failed');
+        return;
+      }
+      await navigator.clipboard.writeText(room.code);
+      setCopyState('copied');
+    } catch {
+      setCopyState('failed');
+    }
+  };
 
   const startGame = async () => {
     setError(null);
@@ -41,11 +67,45 @@ export function LobbyScreen({ room, playerId }: LobbyScreenProps) {
             {isHost ? 'Les invités arrivent.' : 'Tu es au chaud.'}
           </h1>
         </div>
-        <div className="room-code-block">
-          <span>CODE DE LA SALLE</span>
-          <strong>{room.code}</strong>
+        <div
+          className="room-code-copy"
+          onClick={(event) => {
+            const selection = window.getSelection();
+            if (
+              event.detail > 0 &&
+              selection &&
+              !selection.isCollapsed &&
+              selection.containsNode(event.currentTarget, true)
+            ) {
+              return;
+            }
+            void copyRoomCode();
+          }}
+        >
+          <div className="room-code-block">
+            <span>CODE DE LA SALLE</span>
+            <strong>{room.code}</strong>
+            <button
+              className="room-code-action"
+              type="button"
+              disabled={copyState === 'copying'}
+              aria-label={`Copier le code de la salle : ${room.code}`}
+            >
+              {copyState === 'copying' ? 'Copie…' : 'Copier le code'}
+            </button>
+          </div>
+          {copyState === 'copied' && (
+            <span className="room-code-tooltip" role="status">
+              Code copié
+            </span>
+          )}
         </div>
       </div>
+      {copyState === 'failed' && (
+        <p className="notice notice-error" role="alert">
+          Impossible de copier le code. Sélectionne-le et copie-le manuellement : {room.code}.
+        </p>
+      )}
       <p className="description">
         {isHost
           ? 'Partage le code avec tes amis. Le quiz peut commencer dès que vous êtes au moins deux.'
