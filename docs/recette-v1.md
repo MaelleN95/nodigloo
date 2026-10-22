@@ -55,13 +55,14 @@ Vérifications effectuées le 22 octobre 2026 sur <https://nodigloo.vercel.app> 
 | Partie complète avec deux clients Socket.IO | Cinq questions, cinq réponses par joueur, cinq révélations |
 | Scores calculés à partir des révélations | 200 points attendus et reçus pour chaque joueur ; les deux partagent le rang 1 |
 | Transport réseau en fin de partie | WebSocket pour les deux clients |
+| Partie complète dans l'interface publique | OK, rejouée manuellement |
+| Réveil du backend Render | Aucun comportement anormal constaté lors du test manuel |
+| Accès depuis deux réseaux distincts | OK, PC en Wi-Fi et téléphone en données mobiles |
 
-Le parcours navigateur public complet n'a pas été validé : l'outil navigateur a perdu l'accès aux pages pendant les essais. La partie complète ci-dessus a été vérifiée par des clients Socket.IO, pas par deux parcours d'interface.
+Le parcours navigateur public complet a été validé manuellement après les essais automatisés. Le test sur deux réseaux confirme l'accès au jeu depuis ces réseaux, mais ne prouve pas que leurs quotas de tentatives sont indépendants.
 
-Restent à vérifier avant de clore la recette publique :
+Reste à vérifier avant de clore la recette publique :
 
-- le parcours complet dans l'interface publique ;
-- le réveil après mise en veille Render ;
-- l'identification des IP derrière le proxy et le quota de tentatives.
+- l'identification des IP derrière le proxy et le quota de tentatives : atteindre la limite depuis un réseau, puis vérifier qu'un autre réseau reste autorisé pendant la même fenêtre. Jouer normalement depuis les deux réseaux ne suffit pas à valider ce contrôle.
 
 Aucun tag de version n'est encore posé.
