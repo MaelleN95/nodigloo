@@ -512,4 +512,168 @@ describe('room Socket.IO handlers', () => {
     ]);
     expect(roomService.getRoom(created.room.code)?.status).toBe('results');
   });
+
+  it('refuse le neuvième joueur', async () => {
+    const host = await connectClient();
+    const created = requireSuccess(
+      await host.emitWithAck('room:create', { nickname: 'Alice' }),
+    );
+
+    for (let index = 2; index <= 8; index += 1) {
+      const guest = await connectClient();
+      requireSuccess(
+        await guest.emitWithAck('room:join', {
+          code: created.room.code,
+          nickname: `Joueur${index}`,
+        }),
+      );
+    }
+
+    const ninth = await connectClient();
+    const result = await ninth.emitWithAck('room:join', {
+      code: created.room.code,
+      nickname: 'Joueur9',
+    });
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'ROOM_FULL' } });
+    expect(roomService.getRoom(created.room.code)?.players.size).toBe(8);
+  });
+
+  it('refuse un joueur qui arrive pendant une partie', async () => {
+    const host = await connectClient();
+    const guest = await connectClient();
+    const created = requireSuccess(
+      await host.emitWithAck('room:create', { nickname: 'Alice' }),
+    );
+    await guest.emitWithAck('room:join', {
+      code: created.room.code,
+      nickname: 'Bob',
+    });
+    await host.emitWithAck('game:start');
+
+    const latecomer = await connectClient();
+    const result = await latecomer.emitWithAck('room:join', {
+      code: created.room.code,
+      nickname: 'Charlie',
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: 'GAME_ALREADY_STARTED' },
+    });
+  });
+
+  it('refuse une réponse venant d’un socket qui n’est dans aucune salle', async () => {
+    const stranger = await connectClient();
+
+    const result = await stranger.emitWithAck('quiz:answer:submit', {
+      questionId: 'inconnue',
+      choice: 0,
+    });
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'FORBIDDEN' } });
+  });
+
+  it('accepte les réponses simultanées de deux joueurs', async () => {
+    const host = await connectClient();
+    const guest = await connectClient();
+    const created = requireSuccess(
+      await host.emitWithAck('room:create', { nickname: 'Alice' }),
+    );
+    await guest.emitWithAck('room:join', {
+      code: created.room.code,
+      nickname: 'Bob',
+    });
+    const questionStarted = new Promise<QuestionStart>((resolve) => {
+      guest.once('question:started', resolve);
+    });
+    await host.emitWithAck('game:start');
+    const { question } = await questionStarted;
+
+    const results = await Promise.all([
+      host.emitWithAck('quiz:answer:submit', {
+        questionId: question.id,
+        choice: 0,
+      }),
+      guest.emitWithAck('quiz:answer:submit', {
+        questionId: question.id,
+        choice: 1,
+      }),
+    ]);
+
+    expect(results).toEqual([
+      { ok: true, data: undefined },
+      { ok: true, data: undefined },
+    ]);
+  });
+
+  it('garde l’hôte déconnecté dans la salle pendant le délai de reconnexion', async () => {
+    const host = await connectClient();
+    const guest = await connectClient();
+    const created = requireSuccess(
+      await host.emitWithAck('room:create', { nickname: 'Alice' }),
+    );
+    await guest.emitWithAck('room:join', {
+      code: created.room.code,
+      nickname: 'Bob',
+    });
+
+    const hostDisconnected = new Promise<void>((resolve) => {
+      host.once('disconnect', () => resolve());
+    });
+    host.disconnect();
+    await hostDisconnected;
+    // Le serveur traite la déconnexion un peu après le client
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    const room = roomService.getRoom(created.room.code);
+    expect(room?.hostId).toBe(created.session.playerId);
+    expect(room?.players.get(created.session.playerId)?.socketId).toBeNull();
+  });
+
+  it('refuse la reconnexion une fois les 60 secondes écoulées', async () => {
+    const host = await connectClient();
+    const guest = await connectClient();
+    const created = requireSuccess(
+      await host.emitWithAck('room:create', { nickname: 'Alice' }),
+    );
+    const joined = requireSuccess(
+      await guest.emitWithAck('room:join', {
+        code: created.room.code,
+        nickname: 'Bob',
+      }),
+    );
+
+    guest.disconnect();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    now += 60_001;
+    runRoomMaintenance(app.io, roomService);
+
+    const returning = await connectClient();
+    const result = await returning.emitWithAck('session:resume', {
+      code: created.room.code,
+      playerId: joined.session.playerId,
+      reconnectToken: joined.session.reconnectToken,
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: 'SESSION_EXPIRED' },
+    });
+  });
+
+  it('refuse la reprise d’un joueur inconnu avec la même erreur qu’un mauvais token', async () => {
+    const client = await connectClient();
+
+    const result = await client.emitWithAck('session:resume', {
+      code: 'ABCDE',
+      playerId: 'joueur-inconnu',
+      reconnectToken: 'token-inconnu',
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: 'SESSION_EXPIRED' },
+    });
+  });
 });
