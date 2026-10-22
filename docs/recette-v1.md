@@ -16,6 +16,8 @@ Recette faite le 22 octobre 2026 sur la version construite (`docker compose up -
 | Serveur coupé : pastille « Reconnexion… » | OK |
 | Serveur relancé (salles perdues) : message « Session expirée ou invalide » et retour à l'accueil | OK |
 | Pas de débordement horizontal sur écran de 360 px (page d'accueil) | OK |
+| Construction Docker depuis un clone Git local neuf, sans dépendances ni fichiers générés du dossier de travail | OK, client et serveur |
+| Démarrage des images issues du clone neuf, sur des ports temporaires | OK, `/health` répond et une route `/room/ABCDE` renvoie HTTP 200 |
 
 ## Critères du backlog
 
@@ -33,3 +35,8 @@ Recette faite le 22 octobre 2026 sur la version construite (`docker compose up -
 | V1-10 Tests du moteur et des événements temps réel | Validé | Voir [tests/README.md](../tests/README.md) |
 | V1-11 Documentation du lancement, des tests et de l'architecture | Validé | [README](../README.md), [architecture](architecture.md) |
 
+## Reproductibilité et suite
+
+Le build Docker et le démarrage ont aussi été vérifiés depuis un clone Git local neuf du commit `6111a40`, avec le cache Docker existant. Le contrôle de reproductibilité restant pour l'étape 14 est levé.
+
+La suite choisie est le déploiement public sur Vercel et Render, décrit dans le [guide de déploiement](deploiement.md). Le tag annoté `v1.0.0` sera proposé après vérification du parcours sur les adresses publiques.
