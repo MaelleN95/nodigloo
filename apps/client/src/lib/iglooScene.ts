@@ -46,13 +46,14 @@ function createIceBlock(thetaStart: number, thetaEnd: number, phiStart: number, 
 export function createIglooScene(
   container: HTMLDivElement,
   onContextLost: () => void,
-  onAnimationChange: (enabled: boolean) => void,
+  onAnimationChange: (enabled: boolean, automatic: boolean) => void,
 ) {
   const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
   const scene = new THREE.Scene();
   let frame = 0;
   let resizeObserver: ResizeObserver | undefined;
   let visibilityObserver: IntersectionObserver | undefined;
+  const touchInput = window.matchMedia('(hover: none) and (pointer: coarse)');
   let animationEnabled = true;
   let angle = 0.43;
   let height = 2.7;
@@ -71,6 +72,7 @@ export function createIglooScene(
     window.cancelAnimationFrame(frame);
     resizeObserver?.disconnect();
     visibilityObserver?.disconnect();
+    touchInput.removeEventListener('change', inputChanged);
     window.removeEventListener('pointermove', pointerMoved);
     document.removeEventListener('pointerleave', resetPointer);
     window.removeEventListener('blur', resetPointer);
@@ -97,8 +99,13 @@ export function createIglooScene(
   function draw(time: number) {
     if (animationEnabled) {
       const delta = previousTime === undefined ? 1 / 60 : Math.min((time - previousTime) / 1000, 0.05);
-      angle = THREE.MathUtils.damp(angle, targetAngle, 5, delta);
-      height = THREE.MathUtils.damp(height, targetHeight, 5, delta);
+      if (touchInput.matches) {
+        const elapsed = previousTime === undefined ? 0 : (time - previousTime) / 1000;
+        angle = (angle + elapsed * Math.PI * 2 / 60) % (Math.PI * 2);
+      } else {
+        angle = THREE.MathUtils.damp(angle, targetAngle, 5, delta);
+        height = THREE.MathUtils.damp(height, targetHeight, 5, delta);
+      }
     }
     previousTime = animationEnabled ? time : undefined;
     camera.position.set(Math.sin(angle) * 6.6, height, Math.cos(angle) * 6.6);
@@ -113,7 +120,7 @@ export function createIglooScene(
       return;
     }
     draw(performance.now());
-    if (animationEnabled && (Math.abs(angle - targetAngle) > 0.0001 || Math.abs(height - targetHeight) > 0.0001)) {
+    if (animationEnabled && (touchInput.matches || Math.abs(angle - targetAngle) > 0.0001 || Math.abs(height - targetHeight) > 0.0001)) {
       frame = window.requestAnimationFrame(update);
     } else {
       previousTime = undefined;
@@ -121,7 +128,7 @@ export function createIglooScene(
   }
 
   function pointerMoved(event: PointerEvent) {
-    if (!animationEnabled || event.pointerType !== 'mouse') {
+    if (!animationEnabled || touchInput.matches || event.pointerType !== 'mouse') {
       return;
     }
     const x = THREE.MathUtils.clamp(event.clientX / window.innerWidth * 2 - 1, -1, 1);
@@ -132,6 +139,9 @@ export function createIglooScene(
   }
 
   function resetPointer() {
+    if (touchInput.matches) {
+      return;
+    }
     targetAngle = 0.43;
     targetHeight = 2.7;
     update();
@@ -142,9 +152,22 @@ export function createIglooScene(
       return;
     }
     animationEnabled = enabled;
-    onAnimationChange(enabled);
+    if (touchInput.matches && !enabled) {
+      angle = 0.43;
+      height = 2.7;
+    }
+    previousTime = undefined;
+    onAnimationChange(enabled, touchInput.matches);
     targetAngle = angle;
     targetHeight = height;
+    update();
+  }
+
+  function inputChanged() {
+    angle = targetAngle = 0.43;
+    height = targetHeight = 2.7;
+    previousTime = undefined;
+    onAnimationChange(animationEnabled, touchInput.matches);
     update();
   }
 
@@ -280,12 +303,13 @@ export function createIglooScene(
       update();
     });
     visibilityObserver.observe(container);
+    touchInput.addEventListener('change', inputChanged);
     window.addEventListener('pointermove', pointerMoved);
     document.addEventListener('pointerleave', resetPointer);
     window.addEventListener('blur', resetPointer);
     document.addEventListener('visibilitychange', update);
     renderer.domElement.addEventListener('webglcontextlost', contextLost);
-    onAnimationChange(animationEnabled);
+    onAnimationChange(animationEnabled, touchInput.matches);
     update();
     return { dispose, setAnimationEnabled };
   } catch (error) {

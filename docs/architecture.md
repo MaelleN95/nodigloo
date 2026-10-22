@@ -20,7 +20,14 @@ Navigateur (React + Vite)              Serveur (Node + Express + Socket.IO)
 - Les types des événements sont dans `packages/shared`, partagés par le client et le serveur.
 - Tout est gardé en mémoire dans le serveur.
 
-L'illustration d'accueil est une scène Three.js décorative, chargée à la demande par `IglooIllustration`. Elle représente un igloo en blocs de glace avec une entrée ambrée. La caméra suit doucement la souris, avec un angle horizontal et une hauteur limités ; il n'y a plus d'oscillation automatique. Ce suivi est activé par défaut, y compris lorsque la réduction des animations est demandée. Le bouton sous l'igloo permet de le désactiver en conservant l'angle courant, puis de le réactiver. Ce choix est conservé tant que l'accueil reste affiché ; le suivi est réactivé à son prochain montage. Les gestes tactiles ne déplacent pas la caméra. Le rendu s'arrête une fois la caméra stabilisée, hors écran ou quand l'onglet est masqué. Le logo sert de repli pendant le chargement ou si WebGL n'est pas disponible, avec une erreur dans la console en cas d'échec. La commande est masquée tant que la scène n'est pas disponible. Les ressources graphiques et les écouteurs de souris sont libérés au démontage du composant.
+L'illustration d'accueil est une scène Three.js décorative, chargée à la demande par `IglooIllustration`. Elle représente un igloo en blocs de glace avec une entrée ambrée.
+
+- Sur ordinateur, la caméra suit doucement la souris, avec un angle horizontal et une hauteur limités. La commande permet de désactiver ce suivi en conservant l'angle courant.
+- Sur un appareil tactile sans survol (`hover: none` et `pointer: coarse`), la caméra fait un tour complet autour de l'igloo en 60 secondes. « Arrêter l'animation » coupe le mouvement et réinitialise immédiatement la vue ; « Relancer l'animation » reprend la rotation depuis cette position. Les gestes tactiles ne déplacent pas la caméra et le défilement reste libre.
+- Le mouvement est activé par défaut dans les deux modes, y compris lorsque la réduction des animations est demandée. Le choix de l'arrêter reste valable tant que l'accueil est affiché. Un changement de mode de pointage réinitialise la vue sans modifier ce choix.
+- Le rendu s'arrête hors écran ou quand l'onglet est masqué, sans rattrapage du temps écoulé au retour. Sur ordinateur, il s'arrête aussi une fois la caméra stabilisée.
+
+Le logo sert de repli pendant le chargement ou si WebGL n'est pas disponible, avec une erreur dans la console en cas d'échec. La commande est masquée tant que la scène n'est pas disponible. Les ressources graphiques et les écouteurs sont libérés au démontage du composant.
 
 ## Flux de connexion
 

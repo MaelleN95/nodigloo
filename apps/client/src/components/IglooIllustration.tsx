@@ -5,6 +5,7 @@ export function IglooIllustration() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
   const [animationEnabled, setAnimationEnabled] = useState(false);
+  const [automatic, setAutomatic] = useState(false);
   const sceneRef = useRef<ReturnType<typeof createIglooScene>>();
 
   useEffect(() => {
@@ -22,7 +23,10 @@ export function IglooIllustration() {
         sceneRef.current = createIglooScene(
           container,
           () => setReady(false),
-          setAnimationEnabled,
+          (enabled, isAutomatic) => {
+            setAnimationEnabled(enabled);
+            setAutomatic(isAutomatic);
+          },
         );
         setReady(true);
       })
@@ -53,7 +57,9 @@ export function IglooIllustration() {
             className="igloo-animation-button"
             onClick={() => sceneRef.current?.setAnimationEnabled(!animationEnabled)}
           >
-            {animationEnabled ? 'Désactiver le suivi de la souris' : 'Activer le suivi de la souris'}
+            {automatic
+              ? (animationEnabled ? 'Arrêter l’animation' : 'Relancer l’animation')
+              : (animationEnabled ? 'Désactiver le suivi de la souris' : 'Activer le suivi de la souris')}
           </button>
         )}
       </div>
