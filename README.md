@@ -67,8 +67,10 @@ apps/
 packages/
 	shared/       Contrats client/serveur et constantes
 tests/          Guide des tests du serveur
-docs/           Cadrage et suivi V1
+docs/           Cadrage, architecture, sécurité et recette V1
 ```
+
+Pour comprendre le fonctionnement et refaire un parcours à deux joueurs, voir [docs/architecture.md](docs/architecture.md). Les contrôles de sécurité sont dans [docs/security-checklist.md](docs/security-checklist.md).
 
 ## Configuration
 
