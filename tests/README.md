@@ -55,6 +55,22 @@ Les scénarios couvrent notamment les règles du [backlog V1](../docs/backlog-v1
 | Redémarrage du backend | Le serveur redémarré ne connaît plus la salle : c'est le cas « joueur inconnu » de `room-handlers.test.ts`. Le client efface alors sa session et revient à l'accueil. |
 | Limitation des tentatives | `rate-limiter.test.ts`, `room-handlers.test.ts` |
 
+## Scénarios du jeu de réaction
+
+| Scénario | Test |
+| --- | --- |
+| Heure du vert tirée entre 2 et 6 secondes | `reaction-service.test.ts` |
+| Barème selon le temps de réaction | `reaction-service.test.ts` (`getReactionPoints`) |
+| Faux départ : appui avant le vert ou en moins de 100 ms | `reaction-service.test.ts` |
+| Appui répété, tardif, d'un autre socket ou d'une autre manche | `reaction-service.test.ts`, `room-handlers.test.ts` |
+| Fin de manche quand tout le monde a joué, ou à la fin du délai | `reaction-service.test.ts` |
+| Joueurs déconnectés non attendus | `reaction-service.test.ts` |
+| Partie complète et classement | `reaction-service.test.ts`, `room-handlers.test.ts` (bloc « jeu de réaction ») |
+| Reprise de session pendant une manche | `reaction-service.test.ts`, `room-handlers.test.ts` |
+| Appui mal formé | `payloads.test.ts`, `room-handlers.test.ts` |
+| Mesure du décalage d'horloge | `clock-handlers.test.ts`, `apps/client/src/lib/clock.test.ts` |
+| Affichage et tri des temps de la manche | `apps/client/src/lib/reaction.test.ts` |
+
 Aucun test ne dépend d'une base de données ni d'un service externe.
 
-Le test de parcours complet vérifie le quiz via Socket.IO, des réponses aux cinq questions jusqu'au classement, en contrôlant les minuteries sans attendre en temps réel.
+Les tests de parcours complet vérifient chaque jeu via Socket.IO, de la première manche jusqu'au classement, en contrôlant les minuteries sans attendre en temps réel.

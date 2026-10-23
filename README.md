@@ -1,6 +1,6 @@
 # Nodigloo
 
-Plateforme web de mini-jeux multijoueurs en temps réel. La V1 est un quiz de culture générale jouable en salle, sans compte ni persistance.
+Plateforme web de mini-jeux multijoueurs en temps réel, jouable en salle, sans compte ni persistance. La V1 propose un quiz de culture générale ; la V2 ajoute des réglages de partie et un jeu de réaction.
 
 ## Périmètre V1
 
@@ -14,6 +14,15 @@ Plateforme web de mini-jeux multijoueurs en temps réel. La V1 est un quiz de cu
 - Les salles et les scores restent en mémoire et sont perdus au redémarrage.
 
 Le périmètre détaillé et les exclusions sont dans [docs/backlog-v1.md](docs/backlog-v1.md). Les jeux de rapidité, dessin, comptes, base de données et publication publique ne bloquent pas la V1.
+
+## Ajouts de la V2
+
+- L'hôte choisit le jeu dans la salle d'attente : quiz ou réaction.
+- Jeu de réaction : la zone est ambre, puis passe au vert après 2 à 6 secondes tirées par le serveur. Il faut alors appuyer au plus vite, avec soit espace, soit un clic soit un clic tactile sur mobile.
+- Le temps est mesuré sur l'appareil du joueur, pour ne pas compter la latence du réseau. L'heure du vert est convertie avec le décalage d'horloge mesuré à chaque connexion au serveur (`clock:ping`).
+- Barème : 1000 points jusqu'à 150 ms, puis une baisse régulière jusqu'à 0 point à une seconde.
+- Un appui avant le vert, ou en moins de 100 ms, compte comme faux départ et ne rapporte rien. Sans appui dans les 3 secondes après le vert, le joueur n'a pas de point.
+- La manche se termine dès que tous les joueurs connectés ont appuyé. Les temps restent affichés 4 secondes avant la manche suivante.
 
 Les règles de travail (fonctionnalités, commits) sont décrites dans [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -62,7 +71,7 @@ npm run typecheck
 npm run build
 ```
 
-Le client permet de créer ou rejoindre une salle, jouer le quiz et consulter le classement. `npm test` lance les tests unitaires et Socket.IO, décrits dans [tests/README.md](tests/README.md). `npm install` crée le fichier `package-lock.json` à conserver avec le dépôt.
+Le client permet de créer ou rejoindre une salle, choisir le jeu, jouer au quiz ou au jeu de réaction et consulter le classement. `npm test` lance les tests unitaires et Socket.IO, décrits dans [tests/README.md](tests/README.md). `npm install` crée le fichier `package-lock.json` à conserver avec le dépôt.
 
 ## Structure
 
