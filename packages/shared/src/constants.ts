@@ -1,6 +1,9 @@
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 8;
-export const QUESTIONS_PER_GAME = 5;
+// Une manche = une question pour le quiz. L'hôte choisit le nombre dans la salle d'attente.
+export const MIN_ROUNDS = 1;
+export const MAX_ROUNDS = 10;
+export const DEFAULT_ROUNDS = 5;
 export const CHOICES_PER_QUESTION = 4;
 export const QUESTION_DURATION_MS = 20_000;
 export const REVEAL_DURATION_MS = 3_000;

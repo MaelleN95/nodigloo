@@ -1,7 +1,6 @@
 import {
   type ChoiceIndex,
   POINTS_PER_CORRECT_ANSWER,
-  QUESTIONS_PER_GAME,
   QUESTION_DURATION_MS,
   REVEAL_DURATION_MS,
   type QuestionReveal,
@@ -43,6 +42,7 @@ const defaultDeps: QuizServiceDeps = {
 
 const selectQuestions = (
   bank: QuizQuestion[],
+  count: number,
   random: () => number,
 ): QuizQuestion[] => {
   const shuffled = [...bank];
@@ -55,7 +55,7 @@ const selectQuestions = (
     ];
   }
 
-  return shuffled.slice(0, QUESTIONS_PER_GAME);
+  return shuffled.slice(0, count);
 };
 
 const getRanking = (room: Room): RankingEntry[] => {
@@ -99,7 +99,11 @@ export class QuizService {
     }
 
     const game: ActiveGame = {
-      questions: selectQuestions(QUESTION_BANK, this.deps.random),
+      questions: selectQuestions(
+        QUESTION_BANK,
+        room.settings.rounds,
+        this.deps.random,
+      ),
       questionIndex: 0,
       answers: new Map(),
       cancelTimer: () => undefined,
@@ -181,7 +185,7 @@ export class QuizService {
         choices: [...question.choices],
       },
       questionNumber: game.questionIndex + 1,
-      totalQuestions: QUESTIONS_PER_GAME,
+      totalQuestions: game.questions.length,
       serverNow,
       endsAt: serverNow + QUESTION_DURATION_MS,
     };

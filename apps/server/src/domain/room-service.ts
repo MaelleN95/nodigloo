@@ -1,4 +1,13 @@
-import { MAX_PLAYERS, MIN_PLAYERS, RECONNECT_GRACE_MS } from '@nodigloo/shared';
+import {
+  DEFAULT_ROUNDS,
+  GAME_TYPES,
+  type GameSettings,
+  MAX_PLAYERS,
+  MAX_ROUNDS,
+  MIN_PLAYERS,
+  MIN_ROUNDS,
+  RECONNECT_GRACE_MS,
+} from '@nodigloo/shared';
 import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { DomainError } from './errors.js';
 import {
@@ -72,6 +81,7 @@ export class RoomService {
       status: 'lobby',
       hostId: host.id,
       players: new Map([[host.id, host]]),
+      settings: { game: 'quiz', rounds: DEFAULT_ROUNDS },
       createdAt: now,
     };
     this.rooms.set(code, room);
@@ -136,6 +146,41 @@ export class RoomService {
         (oldest, entry) => entry.joinedAt < oldest.joinedAt ? entry : oldest,
       ).id;
     }
+    return room;
+  }
+
+  updateSettings(
+    code: string,
+    playerId: string,
+    socketId: string,
+    settings: GameSettings,
+  ): Room {
+    const room = this.rooms.get(normalizeRoomCode(code));
+    if (!room) {
+      throw new DomainError('ROOM_NOT_FOUND', 'Salle introuvable');
+    }
+
+    const player = room.players.get(playerId);
+    if (room.hostId !== playerId || !player || player.socketId !== socketId) {
+      throw new DomainError(
+        'FORBIDDEN',
+        'Seul l’hôte connecté peut changer les réglages',
+      );
+    }
+
+    if (room.status !== 'lobby') {
+      throw new DomainError('GAME_ALREADY_STARTED', 'La partie a déjà commencé');
+    }
+
+    const validRounds =
+      Number.isInteger(settings.rounds) &&
+      settings.rounds >= MIN_ROUNDS &&
+      settings.rounds <= MAX_ROUNDS;
+    if (!GAME_TYPES.includes(settings.game) || !validRounds) {
+      throw new DomainError('INVALID_PAYLOAD', 'Réglages de partie invalides');
+    }
+
+    room.settings = { game: settings.game, rounds: settings.rounds };
     return room;
   }
 

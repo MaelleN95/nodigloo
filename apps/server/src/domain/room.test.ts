@@ -17,6 +17,7 @@ const makeRoom = (players: Player[]): Room => ({
   status: 'lobby',
   hostId: players[0].id,
   players: new Map(players.map((player) => [player.id, player])),
+  settings: { game: 'quiz', rounds: 5 },
   createdAt: 1000,
 });
 
@@ -55,6 +56,7 @@ describe('toRoomPublic', () => {
     expect(publicRoom.code).toBe('ABC23');
     expect(publicRoom.status).toBe('lobby');
     expect(publicRoom.hostId).toBe('p1');
+    expect(publicRoom.settings).toEqual({ game: 'quiz', rounds: 5 });
     expect(publicRoom.players.map((player) => player.nickname)).toEqual([
       'Alice',
       'Bob',

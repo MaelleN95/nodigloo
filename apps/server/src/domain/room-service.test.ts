@@ -252,6 +252,59 @@ describe('RoomService.joinRoom', () => {
 
 });
 
+describe('RoomService.updateSettings', () => {
+  it('démarre avec le quiz en cinq manches', () => {
+    const service = makeService();
+    const { room } = service.createRoom('Alice', 'socket-1');
+
+    expect(room.settings).toEqual({ game: 'quiz', rounds: 5 });
+  });
+
+  it('laisse l’hôte choisir entre 1 et 10 manches', () => {
+    const service = makeService();
+    const { room, player: alice } = service.createRoom('Alice', 'socket-1');
+
+    service.updateSettings(room.code, alice.id, 'socket-1', { game: 'quiz', rounds: 1 });
+    expect(room.settings.rounds).toBe(1);
+    service.updateSettings(room.code, alice.id, 'socket-1', { game: 'quiz', rounds: 10 });
+    expect(room.settings.rounds).toBe(10);
+  });
+
+  it('refuse un nombre de manches hors limites ou à virgule', () => {
+    const service = makeService();
+    const { room, player: alice } = service.createRoom('Alice', 'socket-1');
+
+    for (const rounds of [0, 11, 2.5]) {
+      expect(() => service.updateSettings(
+        room.code, alice.id, 'socket-1', { game: 'quiz', rounds },
+      )).toThrow(expect.objectContaining({ code: 'INVALID_PAYLOAD' }));
+    }
+    expect(room.settings.rounds).toBe(5);
+  });
+
+  it('refuse les réglages d’un joueur qui n’est pas l’hôte', () => {
+    const service = makeService();
+    const { room } = service.createRoom('Alice', 'socket-1');
+    const { player: bob } = service.joinRoom('AAAAA', 'Bob', 'socket-2');
+
+    expect(() => service.updateSettings(
+      room.code, bob.id, 'socket-2', { game: 'quiz', rounds: 3 },
+    )).toThrow(expect.objectContaining({ code: 'FORBIDDEN' }));
+    expect(room.settings.rounds).toBe(5);
+  });
+
+  it('bloque les réglages une fois la partie lancée', () => {
+    const service = makeService();
+    const { room, player: alice } = service.createRoom('Alice', 'socket-1');
+    service.joinRoom('AAAAA', 'Bob', 'socket-2');
+    service.startGame(room.code, alice.id, 'socket-1');
+
+    expect(() => service.updateSettings(
+      room.code, alice.id, 'socket-1', { game: 'quiz', rounds: 3 },
+    )).toThrow(expect.objectContaining({ code: 'GAME_ALREADY_STARTED' }));
+  });
+});
+
 describe('RoomService.startGame', () => {
   it('passe la salle en partie quand l’hôte a au moins deux joueurs connectés', () => {
     const service = makeService();
