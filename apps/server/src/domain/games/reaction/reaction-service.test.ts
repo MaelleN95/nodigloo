@@ -30,7 +30,7 @@ const makeGame = ({ rounds = 3, random = 0.5 } = {}) => {
   roomService.joinRoom(room.code, 'Bob', 'socket-2');
   roomService.joinRoom(room.code, 'Carl', 'socket-3');
   roomService.updateSettings(room.code, alice.id, 'socket-1', {
-    game: 'quiz',
+    game: 'reaction',
     rounds,
   });
   const reactionService = new ReactionService(

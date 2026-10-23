@@ -1,10 +1,9 @@
-// "lobby" = on attend les joueurs, "playing" = quiz en cours, "results" = classement affiché
+// "lobby" = on attend les joueurs, "playing" = partie en cours (quiz ou réaction), "results" = classement affiché
 export type RoomStatus = 'lobby' | 'playing' | 'results';
 
 export type PlayerId = string;
 
-// Seul le quiz existe pour l'instant, le jeu de réaction viendra s'ajouter ici
-export const GAME_TYPES = ['quiz'] as const;
+export const GAME_TYPES = ['quiz', 'reaction'] as const;
 export type GameType = (typeof GAME_TYPES)[number];
 
 export interface GameSettings {

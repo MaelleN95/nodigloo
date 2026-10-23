@@ -7,10 +7,8 @@ import type {
   ServerToClientEvents,
 } from '@nodigloo/shared';
 import type { Config } from './config.js';
-import {
-  QuizService,
-  type QuizServiceDeps,
-} from './domain/games/quiz/quiz-service.js';
+import { QuizService } from './domain/games/quiz/quiz-service.js';
+import { ReactionService } from './domain/games/reaction/reaction-service.js';
 import { RoomService } from './domain/room-service.js';
 import { runRoomMaintenance } from './socket/room-maintenance.js';
 import { registerClockHandlers } from './socket/clock-handlers.js';
@@ -23,10 +21,17 @@ export class OriginNotAllowedError extends Error {
   }
 }
 
+// Horloge, hasard et chronomètres, partagés par tous les jeux. Les tests les remplacent.
+export interface GameDeps {
+  now: () => number;
+  random: () => number;
+  schedule: (callback: () => void, delayMs: number) => () => void;
+}
+
 export const createApp = (
   config: Config,
   roomService: RoomService = new RoomService(),
-  quizServiceDeps: Partial<QuizServiceDeps> = {},
+  gameDeps: Partial<GameDeps> = {},
 ) => {
   // Les requêtes sans origine (curl, healthcheck Docker) passent, les navigateurs doivent être dans la liste
   const originAllowed = (
@@ -95,7 +100,25 @@ export const createApp = (
           break;
       }
     },
-    quizServiceDeps,
+    gameDeps,
+  );
+
+  const reactionService = new ReactionService(
+    roomService,
+    (roomCode, event) => {
+      switch (event.type) {
+        case 'reaction:round:started':
+          io.to(roomCode).emit('reaction:round:started', event.payload);
+          break;
+        case 'reaction:round:finished':
+          io.to(roomCode).emit('reaction:round:finished', event.payload);
+          break;
+        case 'game:finished':
+          io.to(roomCode).emit('game:finished', event.payload);
+          break;
+      }
+    },
+    gameDeps,
   );
 
   const maintenanceTimer = setInterval(
@@ -106,6 +129,7 @@ export const createApp = (
   httpServer.once('close', () => {
     clearInterval(maintenanceTimer);
     quizService.close();
+    reactionService.close();
   });
 
   // Tentatives de création, jonction ou reprise, comptées par IP
@@ -114,7 +138,12 @@ export const createApp = (
   // On ne logue que l'id technique du socket, jamais de pseudo ni de contenu
   io.on('connection', (socket) => {
     console.info(`Socket connected: ${socket.id}`);
-    registerRoomHandlers(socket, roomService, quizService, attemptLimiter);
+    registerRoomHandlers(
+      socket,
+      roomService,
+      { quiz: quizService, reaction: reactionService },
+      attemptLimiter,
+    );
     registerClockHandlers(socket);
 
     socket.on('disconnect', (reason) => {

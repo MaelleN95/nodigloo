@@ -6,6 +6,11 @@ import type {
   RankingEntry,
 } from './quiz.js';
 import type { GameSettings, PlayerId, RoomPublic } from './room.js';
+import type {
+  ReactionRoundResults,
+  ReactionRoundStart,
+  ReactionSubmission,
+} from './reaction.js';
 
 // Chaque événement client -> serveur répond par un accusé : soit les données, soit une erreur.
 export type Ack<T = void> =
@@ -73,11 +78,17 @@ export interface ClientToServerEvents {
     ack: (result: Ack) => void,
   ) => void;
   'clock:ping': (ack: (result: Ack<ClockPong>) => void) => void;
+  'reaction:submit': (
+    payload: ReactionSubmission,
+    ack: (result: Ack) => void,
+  ) => void;
 }
 
 export interface ServerToClientEvents {
   'room:updated': (room: RoomPublic) => void;
   'question:started': (payload: QuestionStart) => void;
   'question:revealed': (payload: QuestionReveal) => void;
+  'reaction:round:started': (payload: ReactionRoundStart) => void;
+  'reaction:round:finished': (payload: ReactionRoundResults) => void;
   'game:finished': (payload: { ranking: RankingEntry[] }) => void;
 }

@@ -50,6 +50,7 @@ Client vers serveur (chacun répond par un accusé `{ ok: true, data }` ou `{ ok
 | `game:start` | Lance la partie (hôte seulement, 2 joueurs connectés minimum). |
 | `quiz:answer:submit` | Envoie le choix (0 à 3) pour la question en cours. |
 | `clock:ping` | Renvoie l'heure du serveur. Le client s'en sert pour mesurer l'écart entre son horloge et celle du serveur. |
+| `reaction:submit` | Envoie le temps de réaction mesuré sur l'appareil, ou un faux départ, pour la manche en cours. |
 
 Serveur vers client :
 
@@ -58,6 +59,8 @@ Serveur vers client :
 | `room:updated` | Nouvel état de la salle (joueurs, hôte, statut, réglages). |
 | `question:started` | Question et quatre choix, sans la bonne réponse, avec l'heure de fin. |
 | `question:revealed` | Bonne réponse et scores, pendant 3 secondes. |
+| `reaction:round:started` | Début d'une manche de réaction, avec l'heure du serveur à laquelle l'écran passe au vert. |
+| `reaction:round:finished` | Temps, faux départs et points de chacun, affichés 4 secondes avant la manche suivante. |
 | `game:finished` | Classement final. |
 
 Codes d'erreur possibles : `INVALID_PAYLOAD`, `ROOM_NOT_FOUND`, `ROOM_FULL`, `GAME_ALREADY_STARTED`, `NICKNAME_TAKEN`, `FORBIDDEN`, `NOT_ENOUGH_PLAYERS`, `ALREADY_ANSWERED`, `ANSWER_TOO_LATE`, `SESSION_EXPIRED`, `RATE_LIMITED`, `INTERNAL_ERROR`.

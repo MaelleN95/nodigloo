@@ -24,8 +24,9 @@ Client vers serveur (chacun répond par un `Ack` : `{ ok: true, data }` ou `{ ok
 - `game:start` : lance la partie (hôte uniquement)
 - `quiz:answer:submit` : envoie un choix pour la question de quiz en cours
 - `clock:ping` : renvoie l'heure du serveur (`ClockPong`), sans avoir besoin d'être dans une salle
+- `reaction:submit` : envoie un temps de réaction ou un faux départ pour la manche en cours
 
-Serveur vers client : `room:updated`, `question:started`, `question:revealed`, `game:finished`.
+Serveur vers client : `room:updated`, `question:started`, `question:revealed`, `reaction:round:started`, `reaction:round:finished`, `game:finished`.
 
 ## Données publiques et privées
 
