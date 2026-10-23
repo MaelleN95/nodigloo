@@ -5,7 +5,7 @@ import type {
   QuestionStart,
   RankingEntry,
 } from './quiz.js';
-import type { PlayerId, RoomPublic } from './room.js';
+import type { GameSettings, PlayerId, RoomPublic } from './room.js';
 
 // Chaque événement client -> serveur répond par un accusé : soit les données, soit une erreur.
 export type Ack<T = void> =
@@ -56,6 +56,10 @@ export interface ClientToServerEvents {
   'session:resume': (
     payload: ResumeSessionPayload,
     ack: (result: Ack<JoinedRoom>) => void,
+  ) => void;
+  'room:settings:update': (
+    payload: GameSettings,
+    ack: (result: Ack) => void,
   ) => void;
   'game:start': (ack: (result: Ack) => void) => void;
   'room:leave': (ack: (result: Ack) => void) => void;

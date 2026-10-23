@@ -382,6 +382,42 @@ describe('room Socket.IO handlers', () => {
     expect(question.question).not.toHaveProperty('correctChoice');
   });
 
+  it('diffuse les réglages de l’hôte et les refuse à un invité', async () => {
+    const host = await connectClient();
+    const guest = await connectClient();
+    const created = requireSuccess(
+      await host.emitWithAck('room:create', { nickname: 'Alice' }),
+    );
+    await guest.emitWithAck('room:join', {
+      code: created.room.code,
+      nickname: 'Bob',
+    });
+    expect(created.room.settings).toEqual({ game: 'quiz', rounds: 5 });
+    const guestUpdated = new Promise<RoomPublic>((resolve) => {
+      guest.once('room:updated', resolve);
+    });
+
+    expect(
+      await host.emitWithAck('room:settings:update', { game: 'quiz', rounds: 3 }),
+    ).toEqual({ ok: true, data: undefined });
+    expect((await guestUpdated).settings).toEqual({ game: 'quiz', rounds: 3 });
+    expect(
+      await guest.emitWithAck('room:settings:update', { game: 'quiz', rounds: 8 }),
+    ).toMatchObject({ ok: false, error: { code: 'FORBIDDEN' } });
+    expect(
+      await host.emitWithAck('room:settings:update', {
+        game: 'memory',
+        rounds: 3,
+      } as never),
+    ).toMatchObject({ ok: false, error: { code: 'INVALID_PAYLOAD' } });
+
+    const questionStarted = new Promise<QuestionStart>((resolve) => {
+      host.once('question:started', resolve);
+    });
+    await host.emitWithAck('game:start');
+    expect((await questionStarted).totalQuestions).toBe(3);
+  });
+
   it('refuse le démarrage par un non-hôte', async () => {
     const host = await connectClient();
     const guest = await connectClient();

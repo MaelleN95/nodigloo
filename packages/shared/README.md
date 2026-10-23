@@ -6,8 +6,8 @@ Types et constantes communs au client et au serveur. Le package est compilé dan
 
 | Fichier | Rôle |
 | --- | --- |
-| `constants.ts` | Règles V1 : joueurs min/max, nombre de questions, durée, points, délai de reconnexion |
-| `room.ts` | `RoomPublic`, `PlayerPublic`, `RoomStatus` |
+| `constants.ts` | Règles du jeu : joueurs min/max, nombre de manches, durée, points, délai de reconnexion |
+| `room.ts` | `RoomPublic`, `PlayerPublic`, `RoomStatus`, `GameSettings` |
 | `quiz.ts` | `QuestionPublic`, `QuestionStart`, `QuestionReveal`, `RankingEntry` |
 | `errors.ts` | `ERROR_CODES` et `AppError` |
 | `events.ts` | `ClientToServerEvents`, `ServerToClientEvents`, `Ack`, payloads et `Session` |
@@ -19,6 +19,7 @@ Client vers serveur (chacun répond par un `Ack` : `{ ok: true, data }` ou `{ ok
 - `room:create` : crée une salle, le créateur devient hôte
 - `room:join` : rejoint une salle avec un code et un pseudo
 - `session:resume` : reprend sa place avec `playerId` et `reconnectToken`
+- `room:settings:update` : change le jeu et le nombre de manches (hôte uniquement, avant le lancement)
 - `game:start` : lance la partie (hôte uniquement)
 - `quiz:answer:submit` : envoie un choix pour la question de quiz en cours
 

@@ -46,6 +46,7 @@ Client vers serveur (chacun répond par un accusé `{ ok: true, data }` ou `{ ok
 | `room:join` | Rejoint une salle avec un code et un pseudo. |
 | `room:leave` | Quitte immédiatement un salon avant le lancement. La place et le pseudo sont libérés ; le rôle d'hôte est transféré si nécessaire et une salle vide est supprimée. |
 | `session:resume` | Reprend sa place après une coupure. |
+| `room:settings:update` | Change le jeu et le nombre de manches, de 1 à 10 (hôte seulement, avant le lancement). |
 | `game:start` | Lance la partie (hôte seulement, 2 joueurs connectés minimum). |
 | `quiz:answer:submit` | Envoie le choix (0 à 3) pour la question en cours. |
 
@@ -53,7 +54,7 @@ Serveur vers client :
 
 | Événement | Rôle |
 | --- | --- |
-| `room:updated` | Nouvel état de la salle (joueurs, hôte, statut). |
+| `room:updated` | Nouvel état de la salle (joueurs, hôte, statut, réglages). |
 | `question:started` | Question et quatre choix, sans la bonne réponse, avec l'heure de fin. |
 | `question:revealed` | Bonne réponse et scores, pendant 3 secondes. |
 | `game:finished` | Classement final. |

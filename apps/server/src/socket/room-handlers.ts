@@ -15,6 +15,7 @@ import {
   parsePayload,
   resumeSessionSchema,
   submitQuizAnswerSchema,
+  updateSettingsSchema,
 } from './payloads.js';
 import type { RateLimiter } from './rate-limiter.js';
 
@@ -191,6 +192,33 @@ export const registerRoomHandlers = (
           socket.emit('question:started', currentQuestion);
         }
       }
+    } catch (error) {
+      reportError(ack, error);
+    }
+  });
+
+  socket.on('room:settings:update', (payload, ack) => {
+    if (typeof ack !== 'function') {
+      console.warn(
+        `Missing acknowledgement for room:settings:update (${socket.id})`,
+      );
+      return;
+    }
+
+    try {
+      const settings = parsePayload(updateSettingsSchema, payload);
+      if (!membership) {
+        throw new DomainError('FORBIDDEN', 'Action réservée à l’hôte');
+      }
+
+      const room = roomService.updateSettings(
+        membership.roomCode,
+        membership.playerId,
+        socket.id,
+        settings,
+      );
+      socket.nsp.to(room.code).emit('room:updated', toRoomPublic(room));
+      ack({ ok: true, data: undefined });
     } catch (error) {
       reportError(ack, error);
     }

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CHOICES_PER_QUESTION } from '@nodigloo/shared';
+import { CHOICES_PER_QUESTION, GAME_TYPES } from '@nodigloo/shared';
 import { DomainError } from '../domain/errors.js';
 
 // Ici on vérifie seulement la forme (bon type, taille raisonnable).
@@ -24,6 +24,12 @@ export const submitQuizAnswerSchema = z.object({
     .int()
     .min(0)
     .max(CHOICES_PER_QUESTION - 1),
+});
+
+// Les bornes du nombre de manches sont vérifiées dans le domaine
+export const updateSettingsSchema = z.object({
+  game: z.enum(GAME_TYPES),
+  rounds: z.number().int(),
 });
 
 // Un client peut envoyer n'importe quoi : on ne fait jamais confiance au type annoncé
