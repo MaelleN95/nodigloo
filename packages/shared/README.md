@@ -6,9 +6,10 @@ Types et constantes communs au client et au serveur. Le package est compilé dan
 
 | Fichier | Rôle |
 | --- | --- |
-| `constants.ts` | Règles du jeu : joueurs min/max, nombre de manches, durée, points, délai de reconnexion |
+| `constants.ts` | Règles du jeu : joueurs min/max, nombre de manches, durée, points, délai de reconnexion, délais et barème du jeu de réaction |
 | `room.ts` | `RoomPublic`, `PlayerPublic`, `RoomStatus`, `GameSettings` |
 | `quiz.ts` | `QuestionPublic`, `QuestionStart`, `QuestionReveal`, `RankingEntry` |
+| `reaction.ts` | `ReactionRoundStart`, `ReactionSubmission`, `ReactionResult`, `ReactionRoundResults` |
 | `errors.ts` | `ERROR_CODES` et `AppError` |
 | `events.ts` | `ClientToServerEvents`, `ServerToClientEvents`, `Ack`, payloads, `Session` et `ClockPong` |
 
