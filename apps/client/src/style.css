@@ -962,6 +962,117 @@ p {
   color: var(--ink);
 }
 
+.reaction-panel {
+  margin-block: 42px;
+}
+
+.reaction-title {
+  margin: 26px 0 20px;
+  font-size: clamp(24px, 4vw, 34px);
+  line-height: 1.2;
+  letter-spacing: -0.06em;
+}
+
+/* Toute la zone est cliquable : sur mobile, on tape n'importe où dedans */
+.reaction-zone {
+  width: 100%;
+  min-height: 260px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid #75603a;
+  border-radius: 12px;
+  background: var(--amber-light);
+  color: #f0ca7c;
+  text-align: center;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.reaction-zone:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 3px;
+}
+
+.reaction-zone.is-green {
+  border-color: #6e9d7b;
+  background: #2e6b47;
+  color: #ffffff;
+}
+
+.reaction-zone.is-pressed {
+  border-color: #6e9d7b;
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.reaction-zone.is-false-start {
+  border-color: #794740;
+  background: var(--danger-soft);
+  color: #f0aa9a;
+}
+
+.reaction-zone-label {
+  font-family: var(--mono);
+  font-size: clamp(30px, 6vw, 46px);
+  letter-spacing: -0.04em;
+}
+
+.reaction-zone-hint {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.reaction-results {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  list-style: none;
+}
+
+.reaction-result {
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid #3b505b;
+  border-radius: 8px;
+  background: #1b2b36;
+  font-size: 13px;
+}
+
+.reaction-result-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reaction-result-time {
+  color: var(--ink);
+  font-family: var(--mono);
+}
+
+.reaction-result.is-false-start .reaction-result-time {
+  color: var(--danger);
+}
+
+.reaction-result.is-missed .reaction-result-time {
+  color: var(--muted);
+}
+
+.reaction-result strong {
+  min-width: 52px;
+  color: var(--amber);
+  font-family: var(--mono);
+  text-align: right;
+}
+
 .results-panel {
   margin-block: 45px;
 }
