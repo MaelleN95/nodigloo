@@ -72,7 +72,7 @@ apps/
 	server/       Express + Socket.IO, TypeScript
 packages/
 	shared/       Contrats client/serveur et constantes
-tests/          Guide des tests du serveur
+tests/          Guide des tests
 docs/           Cadrage, architecture, sécurité et recette V1
 ```
 

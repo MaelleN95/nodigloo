@@ -2,6 +2,8 @@
 
 Les tests serveur utilisent Jest. Les tests unitaires sont près du code qu'ils vérifient, dans `apps/server/src/domain/` et `apps/server/src/socket/`. Les tests Socket.IO démarrent un serveur local et des clients de test; ils n'ont besoin d'aucun service externe.
 
+Le client utilise Vitest, qui reprend la configuration de Vite. Ses tests sont à côté des fonctions qu'ils vérifient, par exemple `apps/client/src/lib/ranking.test.ts`.
+
 ## Lancer les tests
 
 À la racine du dépôt, exécuter tous les tests :
@@ -19,6 +21,12 @@ npm test --workspace @nodigloo/server -- --runInBand src/socket/room-handlers.te
 ```
 
 `--runInBand` demande à Jest d'exécuter les tests l'un après l'autre, ce qui facilite la lecture des logs des serveurs Socket.IO temporaires.
+
+Pour ne lancer que les tests du client :
+
+```sh
+npm test --workspace @nodigloo/client
+```
 
 Pour vérifier les types sans lancer les tests :
 
