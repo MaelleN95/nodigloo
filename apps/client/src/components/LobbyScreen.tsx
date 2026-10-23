@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
   DEFAULT_ROUNDS,
+  GAME_TYPES,
   type GameSettings,
+  type GameType,
   MAX_PLAYERS,
   MAX_ROUNDS,
   MIN_PLAYERS,
@@ -14,6 +16,11 @@ import { getServerError } from '../lib/socketHelpers';
 type LobbyScreenProps = {
   room: RoomPublic;
   playerId: string;
+};
+
+const GAME_LABELS: Record<GameType, string> = {
+  quiz: 'Quiz',
+  reaction: 'Réaction',
 };
 
 export function LobbyScreen({ room, playerId }: LobbyScreenProps) {
@@ -88,7 +95,7 @@ export function LobbyScreen({ room, playerId }: LobbyScreenProps) {
   };
 
   // Pas de mise à jour locale : on attend le room:updated du serveur, comme les invités
-  const changeRounds = async (rounds: number) => {
+  const changeSettings = async (changes: Partial<GameSettings>) => {
     if (savingSettings || starting || leaving) {
       return;
     }
@@ -98,7 +105,7 @@ export function LobbyScreen({ room, playerId }: LobbyScreenProps) {
       const socket = await getSocket();
       const result = await socket
         .timeout(8_000)
-        .emitWithAck('room:settings:update', { ...settings, rounds });
+        .emitWithAck('room:settings:update', { ...settings, ...changes });
       if (!result.ok) {
         setError(result.error.message);
       }
@@ -211,8 +218,30 @@ export function LobbyScreen({ room, playerId }: LobbyScreenProps) {
       </div>
       <dl className="settings-list">
         <div className="settings-row">
-          <dt>Jeu</dt>
-          <dd>Quiz</dd>
+          <dt id="game-label">Jeu</dt>
+          <dd>
+            {isHost ? (
+              <div className="game-picker" role="group" aria-labelledby="game-label">
+                {GAME_TYPES.map((game) => (
+                  <button
+                    key={game}
+                    type="button"
+                    aria-pressed={settings.game === game}
+                    onClick={() => {
+                      if (settings.game !== game) {
+                        void changeSettings({ game });
+                      }
+                    }}
+                    disabled={savingSettings || starting || leaving}
+                  >
+                    {GAME_LABELS[game]}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              GAME_LABELS[settings.game]
+            )}
+          </dd>
         </div>
         <div className="settings-row">
           <dt id="rounds-label">Manches</dt>
@@ -222,7 +251,7 @@ export function LobbyScreen({ room, playerId }: LobbyScreenProps) {
                 <button
                   type="button"
                   aria-label="Une manche de moins"
-                  onClick={() => void changeRounds(settings.rounds - 1)}
+                  onClick={() => void changeSettings({ rounds: settings.rounds - 1 })}
                   disabled={savingSettings || starting || leaving || settings.rounds <= MIN_ROUNDS}
                 >
                   −
@@ -231,7 +260,7 @@ export function LobbyScreen({ room, playerId }: LobbyScreenProps) {
                 <button
                   type="button"
                   aria-label="Une manche de plus"
-                  onClick={() => void changeRounds(settings.rounds + 1)}
+                  onClick={() => void changeSettings({ rounds: settings.rounds + 1 })}
                   disabled={savingSettings || starting || leaving || settings.rounds >= MAX_ROUNDS}
                 >
                   +

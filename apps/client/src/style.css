@@ -741,6 +741,44 @@ p {
   font-weight: 700;
 }
 
+.game-picker {
+  display: inline-flex;
+  padding: 3px;
+  gap: 3px;
+  border: 1px solid #405560;
+  border-radius: 8px;
+  background: #101d27;
+}
+
+.game-picker button {
+  min-height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #b0bdc2;
+  font-weight: 700;
+}
+
+.game-picker button:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.game-picker button[aria-pressed='true'] {
+  background: var(--amber);
+  color: #1b1408;
+  cursor: default;
+}
+
+.game-picker button:disabled {
+  opacity: 0.6;
+}
+
+.game-picker button:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
 .rounds-stepper {
   display: inline-flex;
   align-items: center;
