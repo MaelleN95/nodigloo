@@ -44,6 +44,12 @@ docker compose -f compose.yaml -f compose.dev.yaml up -d
 
 Le site reste sur [http://localhost:8080](http://localhost:8080), mais il est servi par Vite et se met à jour à chaque sauvegarde. Le premier démarrage installe les dépendances et prend quelques minutes. Pour revenir à la version construite, utiliser `docker compose up -d --build`.
 
+Attention, seul le client se recharge tout seul. Le serveur reste l'image construite au démarrage : après une modification dans `apps/server` ou `packages/shared`, il faut le reconstruire, sinon le client et le serveur ne parlent plus de la même chose.
+
+```sh
+docker compose -f compose.yaml -f compose.dev.yaml up -d --build server
+```
+
 Commandes utiles :
 
 ```sh
