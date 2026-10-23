@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CHOICES_PER_QUESTION, GAME_TYPES } from '@nodigloo/shared';
+import { CHOICES_PER_QUESTION, GAME_TYPES, MAX_ROUNDS } from '@nodigloo/shared';
 import { DomainError } from '../domain/errors.js';
 
 // Ici on vérifie seulement la forme (bon type, taille raisonnable).
@@ -31,6 +31,17 @@ export const updateSettingsSchema = z.object({
   game: z.enum(GAME_TYPES),
   rounds: z.number().int(),
 });
+
+// Le seuil des 100 ms est appliqué par le domaine : ici on écarte juste les valeurs absurdes
+const reactionRound = z.number().int().min(1).max(MAX_ROUNDS);
+export const reactionSubmissionSchema = z.discriminatedUnion('kind', [
+  z.object({
+    round: reactionRound,
+    kind: z.literal('reaction'),
+    reactionMs: z.number().finite().min(0).max(60_000),
+  }),
+  z.object({ round: reactionRound, kind: z.literal('false-start') }),
+]);
 
 // Un client peut envoyer n'importe quoi : on ne fait jamais confiance au type annoncé
 export const parsePayload = <T>(schema: z.ZodType<T>, data: unknown): T => {
