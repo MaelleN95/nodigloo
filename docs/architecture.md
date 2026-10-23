@@ -49,6 +49,7 @@ Client vers serveur (chacun répond par un accusé `{ ok: true, data }` ou `{ ok
 | `room:settings:update` | Change le jeu et le nombre de manches, de 1 à 10 (hôte seulement, avant le lancement). |
 | `game:start` | Lance la partie (hôte seulement, 2 joueurs connectés minimum). |
 | `quiz:answer:submit` | Envoie le choix (0 à 3) pour la question en cours. |
+| `clock:ping` | Renvoie l'heure du serveur. Le client s'en sert pour mesurer l'écart entre son horloge et celle du serveur. |
 
 Serveur vers client :
 

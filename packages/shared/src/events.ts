@@ -44,6 +44,11 @@ export interface SubmitQuizAnswerPayload {
   choice: ChoiceIndex;
 }
 
+// Heure du serveur en millisecondes (Date.now()), pour que chaque appareil calcule son décalage
+export interface ClockPong {
+  serverTime: number;
+}
+
 export interface ClientToServerEvents {
   'room:create': (
     payload: CreateRoomPayload,
@@ -67,6 +72,7 @@ export interface ClientToServerEvents {
     payload: SubmitQuizAnswerPayload,
     ack: (result: Ack) => void,
   ) => void;
+  'clock:ping': (ack: (result: Ack<ClockPong>) => void) => void;
 }
 
 export interface ServerToClientEvents {

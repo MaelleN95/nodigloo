@@ -10,7 +10,7 @@ Types et constantes communs au client et au serveur. Le package est compilé dan
 | `room.ts` | `RoomPublic`, `PlayerPublic`, `RoomStatus`, `GameSettings` |
 | `quiz.ts` | `QuestionPublic`, `QuestionStart`, `QuestionReveal`, `RankingEntry` |
 | `errors.ts` | `ERROR_CODES` et `AppError` |
-| `events.ts` | `ClientToServerEvents`, `ServerToClientEvents`, `Ack`, payloads et `Session` |
+| `events.ts` | `ClientToServerEvents`, `ServerToClientEvents`, `Ack`, payloads, `Session` et `ClockPong` |
 
 ## Événements Socket.IO
 
@@ -22,6 +22,7 @@ Client vers serveur (chacun répond par un `Ack` : `{ ok: true, data }` ou `{ ok
 - `room:settings:update` : change le jeu et le nombre de manches (hôte uniquement, avant le lancement)
 - `game:start` : lance la partie (hôte uniquement)
 - `quiz:answer:submit` : envoie un choix pour la question de quiz en cours
+- `clock:ping` : renvoie l'heure du serveur (`ClockPong`), sans avoir besoin d'être dans une salle
 
 Serveur vers client : `room:updated`, `question:started`, `question:revealed`, `game:finished`.
 

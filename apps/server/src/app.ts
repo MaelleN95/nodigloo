@@ -13,6 +13,7 @@ import {
 } from './domain/games/quiz/quiz-service.js';
 import { RoomService } from './domain/room-service.js';
 import { runRoomMaintenance } from './socket/room-maintenance.js';
+import { registerClockHandlers } from './socket/clock-handlers.js';
 import { registerRoomHandlers } from './socket/room-handlers.js';
 import { createRateLimiter } from './socket/rate-limiter.js';
 
@@ -114,6 +115,7 @@ export const createApp = (
   io.on('connection', (socket) => {
     console.info(`Socket connected: ${socket.id}`);
     registerRoomHandlers(socket, roomService, quizService, attemptLimiter);
+    registerClockHandlers(socket);
 
     socket.on('disconnect', (reason) => {
       console.info(`Socket disconnected: ${socket.id} (${reason})`);
