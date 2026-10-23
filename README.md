@@ -5,8 +5,8 @@ Plateforme web de mini-jeux multijoueurs en temps réel. La V1 est un quiz de cu
 ## Périmètre V1
 
 - 2 à 8 joueurs par salle, avec pseudonyme temporaire et code de salle partageable.
-- L'hôte est le seul à pouvoir lancer une partie.
-- Une partie comporte 5 questions, chacune avec 4 choix et une limite de 20 secondes.
+- L'hôte est le seul à pouvoir lancer une partie et à changer ses réglages.
+- Une partie comporte de 1 à 10 manches, 5 par défaut, choisies par l'hôte dans la salle d'attente. Au quiz, une manche = une question, avec 4 choix et une limite de 20 secondes.
 - Le serveur contrôle le temps, les réponses et les scores : 100 points par bonne réponse, aucun bonus de rapidité.
 - Une réponse au plus par joueur et par question; les réponses tardives ou invalides sont refusées.
 - La reconnexion conserve l'identité logique du joueur pendant un délai de grâce de 60 secondes.
