@@ -9,12 +9,14 @@ import {
 import { useNavigate } from 'react-router-dom';
 import type {
   Ack,
+  ClockPong,
   JoinedRoom,
   QuestionReveal,
   QuestionStart,
   RankingEntry,
   RoomPublic,
 } from '@nodigloo/shared';
+import { measureClockOffset } from '../lib/clock';
 import { roomPath, type RoomStep } from '../lib/routes';
 import {
   readStoredSession,
@@ -37,6 +39,8 @@ type RoomContextValue = {
   error: string | null;
   setError: (message: string | null) => void;
   getSocket: (options?: ConnectionOptions) => Promise<NodiglooSocket>;
+  // Heure du serveur vue depuis cet appareil, pour démarrer les manches en même temps chez tout le monde
+  serverNow: () => number;
   enterRoom: (joined: JoinedRoom) => void;
   leaveRoom: () => void;
 };
@@ -50,6 +54,8 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   navigateRef.current = navigate;
   const socketRef = useRef<NodiglooSocket | null>(null);
   const sessionRef = useRef<StoredSession | null>(null);
+  // Écart en ms entre l'horloge du serveur et celle de l'appareil, mesuré à chaque connexion
+  const clockOffsetRef = useRef(0);
   const [connectionState, setConnectionState] =
     useState<ConnectionState>('disconnected');
   const [session, setSession] = useState<StoredSession | null>(null);
@@ -128,12 +134,29 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const syncClock = async (socket: NodiglooSocket) => {
+    try {
+      clockOffsetRef.current = await measureClockOffset(async () => {
+        const result: Ack<ClockPong> = await socket
+          .timeout(2_000)
+          .emitWithAck('clock:ping');
+        if (!result.ok) {
+          throw new Error(result.error.message);
+        }
+        return result.data.serverTime;
+      });
+    } catch {
+      // Sans mesure, on garde l'horloge de l'appareil : on peut jouer, c'est juste moins précis
+    }
+  };
+
   useEffect(() => {
     const socket = createNodiglooSocket();
     socketRef.current = socket;
 
     socket.on('connect', () => {
       setConnectionState('connected');
+      void syncClock(socket);
       const savedSession = sessionRef.current;
       if (savedSession) {
         void resumeSession(socket, savedSession);
@@ -209,6 +232,8 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     return socket;
   };
 
+  const serverNow = () => Date.now() + clockOffsetRef.current;
+
   const leaveRoom = () => {
     socketRef.current?.disconnect();
     sessionRef.current = null;
@@ -237,6 +262,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
         error,
         setError,
         getSocket,
+        serverNow,
         enterRoom,
         leaveRoom,
       }}
