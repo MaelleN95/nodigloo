@@ -12,7 +12,9 @@ export function LobbyScreen({ room, playerId }: LobbyScreenProps) {
   const { setError, getSocket, leaveRoom } = useRoom();
   const [starting, setStarting] = useState(false);
   const [leaving, setLeaving] = useState(false);
-  const [copyState, setCopyState] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle');
+  const [copyState, setCopyState] = useState<'idle' | 'copying' | 'copied'>(
+    'idle',
+  );
   const isHost = room.hostId === playerId;
   const connectedPlayers = room.players.filter(
     (player) => player.connected,
@@ -31,15 +33,21 @@ export function LobbyScreen({ room, playerId }: LobbyScreenProps) {
       return;
     }
     setCopyState('copying');
+    const copyFailed = () => {
+      setCopyState('idle');
+      setError(
+        `Impossible de copier le code. Sélectionne-le et copie-le manuellement : ${room.code}.`,
+      );
+    };
     try {
       if (!navigator.clipboard?.writeText) {
-        setCopyState('failed');
+        copyFailed();
         return;
       }
       await navigator.clipboard.writeText(room.code);
       setCopyState('copied');
     } catch {
-      setCopyState('failed');
+      copyFailed();
     }
   };
 
@@ -126,11 +134,6 @@ export function LobbyScreen({ room, playerId }: LobbyScreenProps) {
           )}
         </div>
       </div>
-      {copyState === 'failed' && (
-        <p className="notice notice-error" role="alert">
-          Impossible de copier le code. Sélectionne-le et copie-le manuellement : {room.code}.
-        </p>
-      )}
       <p className="description">
         {isHost
           ? 'Partage le code avec tes amis. La partie peut commencer dès que vous êtes au moins deux.'
@@ -151,9 +154,7 @@ export function LobbyScreen({ room, playerId }: LobbyScreenProps) {
             </span>
             <span className="player-name">
               {player.nickname}
-              {player.id === playerId && (
-                <span className="you-label">toi</span>
-              )}
+              {player.id === playerId && <span className="you-label">toi</span>}
             </span>
             {player.id === room.hostId && (
               <span className="host-label">HÔTE</span>
@@ -202,7 +203,8 @@ export function LobbyScreen({ room, playerId }: LobbyScreenProps) {
         </button>
         <p className="field-hint">
           Tu quittes la salle et libères ta place.
-          {isHost && room.players.length > 1 &&
+          {isHost &&
+            room.players.length > 1 &&
             ' Un autre joueur reprendra le rôle d’hôte.'}
         </p>
       </div>

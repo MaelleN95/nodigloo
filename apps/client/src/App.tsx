@@ -1,4 +1,5 @@
 import type { RoomPublic } from '@nodigloo/shared';
+import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { Footer } from './components/Footer';
 import { Header } from './components/Header';
@@ -11,7 +12,16 @@ import type { StoredSession } from './lib/session';
 import './style.css';
 
 export function App() {
-  const { connectionState, session, room, resuming, error } = useRoom();
+  const { connectionState, session, room, resuming, error, setError } = useRoom();
+
+  // Une nouvelle erreur relance le délai ; le bouton × permet de la fermer avant.
+  useEffect(() => {
+    if (!error) {
+      return;
+    }
+    const timeout = window.setTimeout(() => setError(null), 6_000);
+    return () => window.clearTimeout(timeout);
+  }, [error, setError]);
 
   // Pas de salle (URL tapée à la main, session expirée) : retour à l'accueil, sauf si on est en train de reprendre la session.
   const inRoom = (
@@ -28,9 +38,17 @@ export function App() {
       <Header connectionState={connectionState} />
 
       {error && (
-        <p className="notice notice-error" role="alert">
-          {error}
-        </p>
+        <div className="error-toast" role="alert">
+          <p>{error}</p>
+          <button
+            className="error-toast-close"
+            type="button"
+            aria-label="Fermer le message d’erreur"
+            onClick={() => setError(null)}
+          >
+            ×
+          </button>
+        </div>
       )}
 
       <Routes>

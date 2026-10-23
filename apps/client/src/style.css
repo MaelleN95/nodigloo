@@ -156,6 +156,60 @@ button:disabled {
   color: #f0ca7c;
 }
 
+.error-toast {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 100;
+  width: min(380px, calc(100vw - 32px));
+  padding: 12px 8px 12px 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border: 1px solid #71413a;
+  border-radius: 8px;
+  background: var(--danger-soft);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35);
+  color: #f0b0a0;
+  font-size: 14px;
+  line-height: 1.5;
+  animation: toast-in 180ms ease-out both;
+}
+
+.error-toast p {
+  flex: 1;
+  margin: 0;
+  padding-top: 5px;
+}
+
+.error-toast-close {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.error-toast-close:hover {
+  background: rgba(240, 176, 160, 0.12);
+}
+
+.error-toast-close:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 1px;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
 .home-hero {
   min-height: 370px;
   padding: 48px 8%;
@@ -998,6 +1052,15 @@ p {
     justify-content: center;
     flex-wrap: wrap;
     font-size: 8px;
+  }
+
+  .error-toast {
+    top: 0;
+    right: 0;
+    left: 0;
+    width: auto;
+    border-width: 0 0 1px;
+    border-radius: 0;
   }
 }
 
