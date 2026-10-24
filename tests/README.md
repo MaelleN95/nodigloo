@@ -1,6 +1,6 @@
 # Tests
 
-Les tests serveur utilisent Jest. Les tests unitaires sont près du code qu'ils vérifient, dans `apps/server/src/domain/` et `apps/server/src/socket/`. Les tests Socket.IO démarrent un serveur local et des clients de test; ils n'ont besoin d'aucun service externe.
+Les tests serveur utilisent Jest. Les tests unitaires sont près du code qu'ils vérifient, dans `apps/server/src/domain/`, `apps/server/src/socket/` et `apps/server/src/config.test.ts`. Les tests Socket.IO démarrent un serveur local et des clients de test; ils n'ont besoin d'aucun service externe.
 
 Le client utilise Vitest, qui reprend la configuration de Vite. Ses tests sont à côté des fonctions qu'ils vérifient, par exemple `apps/client/src/lib/ranking.test.ts`.
 
@@ -52,7 +52,7 @@ Les scénarios couvrent notamment les règles du [backlog V1](../docs/backlog-v1
 | Reconnexion dans les 60 s, et refus après | `room-service.test.ts`, `room-handlers.test.ts` |
 | Payload mal formé | `payloads.test.ts`, `room-handlers.test.ts` |
 | Identifiant inconnu | `room-handlers.test.ts`, `room-service.test.ts` |
-| Redémarrage du backend | Le serveur redémarré ne connaît plus la salle : c'est le cas « joueur inconnu » de `room-handlers.test.ts`. Le client efface alors sa session et revient à l'accueil. |
+| Reprise après redémarrage du backend | `room-handlers.test.ts` vérifie que le serveur refuse une session inconnue après redémarrage. Le retour du client à l'accueil n'a pas de test automatisé. |
 | Limitation des tentatives | `rate-limiter.test.ts`, `room-handlers.test.ts` |
 
 ## Scénarios du jeu de réaction
