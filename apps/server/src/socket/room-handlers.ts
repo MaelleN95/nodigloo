@@ -7,19 +7,27 @@ import type {
 import type { Socket } from 'socket.io';
 import { DomainError, toAppError } from '../domain/errors.js';
 import { QuizService } from '../domain/games/quiz/quiz-service.js';
+import { ReactionService } from '../domain/games/reaction/reaction-service.js';
 import { RoomService } from '../domain/room-service.js';
 import { toRoomPublic } from '../domain/room.js';
 import {
   createRoomSchema,
   joinRoomSchema,
   parsePayload,
+  reactionSubmissionSchema,
   resumeSessionSchema,
   submitQuizAnswerSchema,
+  updateSettingsSchema,
 } from './payloads.js';
 import type { RateLimiter } from './rate-limiter.js';
 
 type ClientSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 type JoinedRoomAck = (result: Ack<JoinedRoom>) => void;
+
+export interface GameServices {
+  quiz: QuizService;
+  reaction: ReactionService;
+}
 
 const reportError = <T>(
   ack: (result: Ack<T>) => void,
@@ -38,7 +46,7 @@ const reportError = <T>(
 export const registerRoomHandlers = (
   socket: ClientSocket,
   roomService: RoomService,
-  quizService: QuizService,
+  games: GameServices,
   attemptLimiter?: RateLimiter,
 ): void => {
   let membership: { roomCode: string; playerId: string } | undefined;
@@ -186,11 +194,45 @@ export const registerRoomHandlers = (
         },
       });
       if (room.status === 'playing') {
-        const currentQuestion = quizService.getCurrentQuestion(room.code);
-        if (currentQuestion) {
-          socket.emit('question:started', currentQuestion);
+        if (room.settings.game === 'reaction') {
+          const currentRound = games.reaction.getCurrentRound(room.code);
+          if (currentRound) {
+            socket.emit('reaction:round:started', currentRound);
+          }
+        } else {
+          const currentQuestion = games.quiz.getCurrentQuestion(room.code);
+          if (currentQuestion) {
+            socket.emit('question:started', currentQuestion);
+          }
         }
       }
+    } catch (error) {
+      reportError(ack, error);
+    }
+  });
+
+  socket.on('room:settings:update', (payload, ack) => {
+    if (typeof ack !== 'function') {
+      console.warn(
+        `Missing acknowledgement for room:settings:update (${socket.id})`,
+      );
+      return;
+    }
+
+    try {
+      const settings = parsePayload(updateSettingsSchema, payload);
+      if (!membership) {
+        throw new DomainError('FORBIDDEN', 'Action réservée à l’hôte');
+      }
+
+      const room = roomService.updateSettings(
+        membership.roomCode,
+        membership.playerId,
+        socket.id,
+        settings,
+      );
+      socket.nsp.to(room.code).emit('room:updated', toRoomPublic(room));
+      ack({ ok: true, data: undefined });
     } catch (error) {
       reportError(ack, error);
     }
@@ -212,9 +254,15 @@ export const registerRoomHandlers = (
         membership.playerId,
         socket.id,
       );
-      const firstQuestion = quizService.startGame(room);
-      socket.nsp.to(room.code).emit('room:updated', toRoomPublic(room));
-      socket.nsp.to(room.code).emit('question:started', firstQuestion);
+      if (room.settings.game === 'reaction') {
+        const firstRound = games.reaction.startGame(room);
+        socket.nsp.to(room.code).emit('room:updated', toRoomPublic(room));
+        socket.nsp.to(room.code).emit('reaction:round:started', firstRound);
+      } else {
+        const firstQuestion = games.quiz.startGame(room);
+        socket.nsp.to(room.code).emit('room:updated', toRoomPublic(room));
+        socket.nsp.to(room.code).emit('question:started', firstQuestion);
+      }
       ack({ ok: true, data: undefined });
     } catch (error) {
       reportError(ack, error);
@@ -241,12 +289,39 @@ export const registerRoomHandlers = (
         );
       }
 
-      quizService.submitAnswer(
+      games.quiz.submitAnswer(
         membership.roomCode,
         membership.playerId,
         socket.id,
         questionId,
         choice,
+      );
+      ack({ ok: true, data: undefined });
+    } catch (error) {
+      reportError(ack, error);
+    }
+  });
+
+  socket.on('reaction:submit', (payload, ack) => {
+    if (typeof ack !== 'function') {
+      console.warn(`Missing acknowledgement for reaction:submit (${socket.id})`);
+      return;
+    }
+
+    try {
+      const submission = parsePayload(reactionSubmissionSchema, payload);
+      if (!membership) {
+        throw new DomainError(
+          'FORBIDDEN',
+          'Action réservée aux joueurs de la salle',
+        );
+      }
+
+      games.reaction.submit(
+        membership.roomCode,
+        membership.playerId,
+        socket.id,
+        submission,
       );
       ack({ ok: true, data: undefined });
     } catch (error) {

@@ -6,11 +6,12 @@ Types et constantes communs au client et au serveur. Le package est compilé dan
 
 | Fichier | Rôle |
 | --- | --- |
-| `constants.ts` | Règles V1 : joueurs min/max, nombre de questions, durée, points, délai de reconnexion |
-| `room.ts` | `RoomPublic`, `PlayerPublic`, `RoomStatus` |
+| `constants.ts` | Règles du jeu : joueurs min/max, nombre de manches, durée, points, délai de reconnexion, délais et barème du jeu de réaction |
+| `room.ts` | `RoomPublic`, `PlayerPublic`, `RoomStatus`, `GameSettings` |
 | `quiz.ts` | `QuestionPublic`, `QuestionStart`, `QuestionReveal`, `RankingEntry` |
+| `reaction.ts` | `ReactionRoundStart`, `ReactionSubmission`, `ReactionResult`, `ReactionRoundResults` |
 | `errors.ts` | `ERROR_CODES` et `AppError` |
-| `events.ts` | `ClientToServerEvents`, `ServerToClientEvents`, `Ack`, payloads et `Session` |
+| `events.ts` | `ClientToServerEvents`, `ServerToClientEvents`, `Ack`, payloads, `Session` et `ClockPong` |
 
 ## Événements Socket.IO
 
@@ -19,10 +20,13 @@ Client vers serveur (chacun répond par un `Ack` : `{ ok: true, data }` ou `{ ok
 - `room:create` : crée une salle, le créateur devient hôte
 - `room:join` : rejoint une salle avec un code et un pseudo
 - `session:resume` : reprend sa place avec `playerId` et `reconnectToken`
+- `room:settings:update` : change le jeu et le nombre de manches (hôte uniquement, avant le lancement)
 - `game:start` : lance la partie (hôte uniquement)
 - `quiz:answer:submit` : envoie un choix pour la question de quiz en cours
+- `clock:ping` : renvoie l'heure du serveur (`ClockPong`), sans avoir besoin d'être dans une salle
+- `reaction:submit` : envoie un temps de réaction ou un faux départ pour la manche en cours
 
-Serveur vers client : `room:updated`, `question:started`, `question:revealed`, `game:finished`.
+Serveur vers client : `room:updated`, `question:started`, `question:revealed`, `reaction:round:started`, `reaction:round:finished`, `game:finished`.
 
 ## Données publiques et privées
 

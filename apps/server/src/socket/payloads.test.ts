@@ -3,6 +3,7 @@ import {
   createRoomSchema,
   joinRoomSchema,
   parsePayload,
+  reactionSubmissionSchema,
   resumeSessionSchema,
   submitQuizAnswerSchema,
 } from './payloads.js';
@@ -78,6 +79,33 @@ describe('parsePayload', () => {
     expect(() =>
       parsePayload(submitQuizAnswerSchema, { questionId: '', choice: 0 }),
     ).toThrow(invalidPayload);
+  });
+
+  it('accepte un temps de réaction et un faux départ', () => {
+    expect(
+      parsePayload(reactionSubmissionSchema, {
+        round: 2,
+        kind: 'reaction',
+        reactionMs: 231.4,
+      }),
+    ).toEqual({ round: 2, kind: 'reaction', reactionMs: 231.4 });
+    expect(
+      parsePayload(reactionSubmissionSchema, { round: 1, kind: 'false-start' }),
+    ).toEqual({ round: 1, kind: 'false-start' });
+  });
+
+  it.each([
+    { round: 1, kind: 'reaction' },
+    { round: 1, kind: 'reaction', reactionMs: -5 },
+    { round: 1, kind: 'reaction', reactionMs: '200' },
+    { round: 1, kind: 'reaction', reactionMs: 90_000 },
+    { round: 0, kind: 'false-start' },
+    { round: 11, kind: 'false-start' },
+    { round: 1, kind: 'cheat' },
+  ])('refuse un appui de réaction invalide : %p', (payload) => {
+    expect(() => parsePayload(reactionSubmissionSchema, payload)).toThrow(
+      invalidPayload,
+    );
   });
 
   it('ne laisse pas fuiter le détail de zod dans le message', () => {

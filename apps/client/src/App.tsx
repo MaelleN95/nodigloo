@@ -6,6 +6,7 @@ import { Header } from './components/Header';
 import { HomeScreen } from './components/HomeScreen';
 import { LobbyScreen } from './components/LobbyScreen';
 import { QuizScreen } from './components/QuizScreen';
+import { ReactionScreen } from './components/ReactionScreen';
 import { ResultsScreen } from './components/ResultsScreen';
 import { useRoom } from './context/RoomContext';
 import type { StoredSession } from './lib/session';
@@ -66,6 +67,15 @@ export function App() {
           path="/room/:code/quiz"
           element={inRoom((currentRoom, currentSession) => (
             <QuizScreen
+              room={currentRoom}
+              playerId={currentSession.playerId}
+            />
+          ))}
+        />
+        <Route
+          path="/room/:code/reaction"
+          element={inRoom((currentRoom, currentSession) => (
+            <ReactionScreen
               room={currentRoom}
               playerId={currentSession.playerId}
             />

@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import {
-  QUESTIONS_PER_GAME,
+  DEFAULT_ROUNDS,
   QUESTION_DURATION_MS,
   REVEAL_DURATION_MS,
 } from '@nodigloo/shared';
@@ -98,14 +98,14 @@ describe('QuizService', () => {
     const firstQuestion = fixture.quizService.startGame(fixture.room);
 
     expect(firstQuestion.questionNumber).toBe(1);
-    expect(firstQuestion.totalQuestions).toBe(QUESTIONS_PER_GAME);
+    expect(firstQuestion.totalQuestions).toBe(DEFAULT_ROUNDS);
     expect(firstQuestion.endsAt - firstQuestion.serverNow).toBe(
       QUESTION_DURATION_MS,
     );
     expect(firstQuestion.question).not.toHaveProperty('correctChoice');
 
     const selectedIds = [firstQuestion.question.id];
-    for (let index = 1; index < QUESTIONS_PER_GAME; index += 1) {
+    for (let index = 1; index < DEFAULT_ROUNDS; index += 1) {
       fixture.advanceToNextQuestion();
       const started = fixture.events.filter(
         (entry) => entry.event.type === 'question:started',
@@ -116,7 +116,7 @@ describe('QuizService', () => {
       }
     }
 
-    expect(new Set(selectedIds).size).toBe(QUESTIONS_PER_GAME);
+    expect(new Set(selectedIds).size).toBe(DEFAULT_ROUNDS);
   });
 
   it('révèle les cinq réponses au terme de leur durée puis termine la partie', () => {
@@ -126,7 +126,7 @@ describe('QuizService', () => {
     fixture.room.players.get('p3')!.score = 50;
     fixture.quizService.startGame(fixture.room);
 
-    for (let question = 0; question < QUESTIONS_PER_GAME; question += 1) {
+    for (let question = 0; question < DEFAULT_ROUNDS; question += 1) {
       fixture.advanceToNextQuestion();
     }
 
@@ -137,13 +137,30 @@ describe('QuizService', () => {
       (entry) => entry.event.type === 'game:finished',
     );
 
-    expect(reveals).toHaveLength(QUESTIONS_PER_GAME);
+    expect(reveals).toHaveLength(DEFAULT_ROUNDS);
     expect(finished?.event.type).toBe('game:finished');
     if (finished?.event.type === 'game:finished') {
       expect(finished.event.payload.ranking.map((entry) => entry.rank)).toEqual([
         1, 1, 3,
       ]);
     }
+    expect(fixture.room.status).toBe('results');
+  });
+
+  it('pose autant de questions que de manches choisies par l’hôte', () => {
+    const fixture = makeGame();
+    fixture.room.settings.rounds = 3;
+    const firstQuestion = fixture.quizService.startGame(fixture.room);
+
+    expect(firstQuestion.totalQuestions).toBe(3);
+    for (let question = 0; question < 3; question += 1) {
+      fixture.advanceToNextQuestion();
+    }
+
+    const reveals = fixture.events.filter(
+      (entry) => entry.event.type === 'question:revealed',
+    );
+    expect(reveals).toHaveLength(3);
     expect(fixture.room.status).toBe('results');
   });
 

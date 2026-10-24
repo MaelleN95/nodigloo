@@ -1,5 +1,15 @@
 import { useEffect, useState } from 'react';
-import { MAX_PLAYERS, MIN_PLAYERS, type RoomPublic } from '@nodigloo/shared';
+import {
+  DEFAULT_ROUNDS,
+  GAME_TYPES,
+  type GameSettings,
+  type GameType,
+  MAX_PLAYERS,
+  MAX_ROUNDS,
+  MIN_PLAYERS,
+  MIN_ROUNDS,
+  type RoomPublic,
+} from '@nodigloo/shared';
 import { useRoom } from '../context/RoomContext';
 import { getServerError } from '../lib/socketHelpers';
 
@@ -8,14 +18,26 @@ type LobbyScreenProps = {
   playerId: string;
 };
 
+const GAME_LABELS: Record<GameType, string> = {
+  quiz: 'Quiz',
+  reaction: 'Réaction',
+};
+
 export function LobbyScreen({ room, playerId }: LobbyScreenProps) {
   const { setError, getSocket, leaveRoom } = useRoom();
   const [starting, setStarting] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
   const [copyState, setCopyState] = useState<'idle' | 'copying' | 'copied'>(
     'idle',
   );
   const isHost = room.hostId === playerId;
+  // Un serveur pas encore mis à jour n'envoie pas les réglages : on affiche ceux par défaut
+  // plutôt que de faire planter tout l'écran.
+  const settings: GameSettings = room.settings ?? {
+    game: 'quiz',
+    rounds: DEFAULT_ROUNDS,
+  };
   const connectedPlayers = room.players.filter(
     (player) => player.connected,
   ).length;
@@ -69,6 +91,28 @@ export function LobbyScreen({ room, playerId }: LobbyScreenProps) {
       setError(getServerError(caught));
     } finally {
       setLeaving(false);
+    }
+  };
+
+  // Pas de mise à jour locale : on attend le room:updated du serveur, comme les invités
+  const changeSettings = async (changes: Partial<GameSettings>) => {
+    if (savingSettings || starting || leaving) {
+      return;
+    }
+    setError(null);
+    setSavingSettings(true);
+    try {
+      const socket = await getSocket();
+      const result = await socket
+        .timeout(8_000)
+        .emitWithAck('room:settings:update', { ...settings, ...changes });
+      if (!result.ok) {
+        setError(result.error.message);
+      }
+    } catch (caught) {
+      setError(getServerError(caught));
+    } finally {
+      setSavingSettings(false);
     }
   };
 
@@ -167,6 +211,67 @@ export function LobbyScreen({ room, playerId }: LobbyScreenProps) {
           </li>
         ))}
       </ul>
+
+      <div className="players-heading">
+        <h2>Réglages de la partie</h2>
+        {!isHost && <span>Choisis par l’hôte</span>}
+      </div>
+      <dl className="settings-list">
+        <div className="settings-row">
+          <dt id="game-label">Jeu</dt>
+          <dd>
+            {isHost ? (
+              <div className="game-picker" role="group" aria-labelledby="game-label">
+                {GAME_TYPES.map((game) => (
+                  <button
+                    key={game}
+                    type="button"
+                    aria-pressed={settings.game === game}
+                    onClick={() => {
+                      if (settings.game !== game) {
+                        void changeSettings({ game });
+                      }
+                    }}
+                    disabled={savingSettings || starting || leaving}
+                  >
+                    {GAME_LABELS[game]}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              GAME_LABELS[settings.game]
+            )}
+          </dd>
+        </div>
+        <div className="settings-row">
+          <dt id="rounds-label">Manches</dt>
+          <dd>
+            {isHost ? (
+              <div className="rounds-stepper" role="group" aria-labelledby="rounds-label">
+                <button
+                  type="button"
+                  aria-label="Une manche de moins"
+                  onClick={() => void changeSettings({ rounds: settings.rounds - 1 })}
+                  disabled={savingSettings || starting || leaving || settings.rounds <= MIN_ROUNDS}
+                >
+                  −
+                </button>
+                <output aria-live="polite">{settings.rounds}</output>
+                <button
+                  type="button"
+                  aria-label="Une manche de plus"
+                  onClick={() => void changeSettings({ rounds: settings.rounds + 1 })}
+                  disabled={savingSettings || starting || leaving || settings.rounds >= MAX_ROUNDS}
+                >
+                  +
+                </button>
+              </div>
+            ) : (
+              settings.rounds
+            )}
+          </dd>
+        </div>
+      </dl>
 
       {isHost ? (
         <div className="lobby-action">

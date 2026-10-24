@@ -1,7 +1,6 @@
 import {
   type ChoiceIndex,
   POINTS_PER_CORRECT_ANSWER,
-  QUESTIONS_PER_GAME,
   QUESTION_DURATION_MS,
   REVEAL_DURATION_MS,
   type QuestionReveal,
@@ -10,6 +9,8 @@ import {
 } from '@nodigloo/shared';
 import { DomainError } from '../../errors.js';
 import type { Room } from '../../room.js';
+import { getRanking } from '../../ranking.js';
+import { defaultGameDeps, type GameDeps } from '../game-deps.js';
 import { QUESTION_BANK, type QuizQuestion } from './question-bank.js';
 import { RoomService } from '../../room-service.js';
 
@@ -17,12 +18,6 @@ export type QuizEvent =
   | { type: 'question:started'; payload: QuestionStart }
   | { type: 'question:revealed'; payload: QuestionReveal }
   | { type: 'game:finished'; payload: { ranking: RankingEntry[] } };
-
-export interface QuizServiceDeps {
-  now: () => number;
-  random: () => number;
-  schedule: (callback: () => void, delayMs: number) => () => void;
-}
 
 interface ActiveGame {
   questions: QuizQuestion[];
@@ -32,17 +27,9 @@ interface ActiveGame {
   cancelTimer: () => void;
 }
 
-const defaultDeps: QuizServiceDeps = {
-  now: () => Date.now(),
-  random: () => Math.random(),
-  schedule: (callback, delayMs) => {
-    const timer = setTimeout(callback, delayMs);
-    return () => clearTimeout(timer);
-  },
-};
-
 const selectQuestions = (
   bank: QuizQuestion[],
+  count: number,
   random: () => number,
 ): QuizQuestion[] => {
   const shuffled = [...bank];
@@ -55,42 +42,19 @@ const selectQuestions = (
     ];
   }
 
-  return shuffled.slice(0, QUESTIONS_PER_GAME);
-};
-
-const getRanking = (room: Room): RankingEntry[] => {
-  const players = [...room.players.values()].sort(
-    (first, second) =>
-      second.score - first.score || first.joinedAt - second.joinedAt,
-  );
-  const ranking: RankingEntry[] = [];
-
-  players.forEach((player, index) => {
-    const previous = ranking[index - 1];
-    ranking.push({
-      playerId: player.id,
-      nickname: player.nickname,
-      score: player.score,
-      rank:
-        previous && previous.score === player.score
-          ? previous.rank
-          : index + 1,
-    });
-  });
-
-  return ranking;
+  return shuffled.slice(0, count);
 };
 
 export class QuizService {
   private readonly games = new Map<string, ActiveGame>();
-  private readonly deps: QuizServiceDeps;
+  private readonly deps: GameDeps;
 
   constructor(
     private readonly roomService: RoomService,
     private readonly emit: (roomCode: string, event: QuizEvent) => void,
-    deps: Partial<QuizServiceDeps> = {},
+    deps: Partial<GameDeps> = {},
   ) {
-    this.deps = { ...defaultDeps, ...deps };
+    this.deps = { ...defaultGameDeps, ...deps };
   }
 
   startGame(room: Room): QuestionStart {
@@ -99,7 +63,11 @@ export class QuizService {
     }
 
     const game: ActiveGame = {
-      questions: selectQuestions(QUESTION_BANK, this.deps.random),
+      questions: selectQuestions(
+        QUESTION_BANK,
+        room.settings.rounds,
+        this.deps.random,
+      ),
       questionIndex: 0,
       answers: new Map(),
       cancelTimer: () => undefined,
@@ -181,7 +149,7 @@ export class QuizService {
         choices: [...question.choices],
       },
       questionNumber: game.questionIndex + 1,
-      totalQuestions: QUESTIONS_PER_GAME,
+      totalQuestions: game.questions.length,
       serverNow,
       endsAt: serverNow + QUESTION_DURATION_MS,
     };

@@ -9,12 +9,16 @@ import {
 import { useNavigate } from 'react-router-dom';
 import type {
   Ack,
+  ClockPong,
   JoinedRoom,
   QuestionReveal,
   QuestionStart,
   RankingEntry,
+  ReactionRoundResults,
+  ReactionRoundStart,
   RoomPublic,
 } from '@nodigloo/shared';
+import { measureClockOffset } from '../lib/clock';
 import { roomPath, type RoomStep } from '../lib/routes';
 import {
   readStoredSession,
@@ -32,11 +36,15 @@ type RoomContextValue = {
   room: RoomPublic | null;
   question: QuestionStart | null;
   reveal: QuestionReveal | null;
+  reactionRound: ReactionRoundStart | null;
+  reactionResults: ReactionRoundResults | null;
   ranking: RankingEntry[] | null;
   resuming: boolean;
   error: string | null;
   setError: (message: string | null) => void;
   getSocket: (options?: ConnectionOptions) => Promise<NodiglooSocket>;
+  // Heure du serveur vue depuis cet appareil, pour démarrer les manches en même temps chez tout le monde
+  serverNow: () => number;
   enterRoom: (joined: JoinedRoom) => void;
   leaveRoom: () => void;
 };
@@ -50,12 +58,17 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   navigateRef.current = navigate;
   const socketRef = useRef<NodiglooSocket | null>(null);
   const sessionRef = useRef<StoredSession | null>(null);
+  // Écart en ms entre l'horloge du serveur et celle de l'appareil, mesuré à chaque connexion
+  const clockOffsetRef = useRef(0);
   const [connectionState, setConnectionState] =
     useState<ConnectionState>('disconnected');
   const [session, setSession] = useState<StoredSession | null>(null);
   const [room, setRoom] = useState<RoomPublic | null>(null);
   const [question, setQuestion] = useState<QuestionStart | null>(null);
   const [reveal, setReveal] = useState<QuestionReveal | null>(null);
+  const [reactionRound, setReactionRound] = useState<ReactionRoundStart | null>(null);
+  const [reactionResults, setReactionResults] =
+    useState<ReactionRoundResults | null>(null);
   const [ranking, setRanking] = useState<RankingEntry[] | null>(null);
   // Si une session est mémorisée, on attend sa reprise avant de juger l'URL (sinon on renverrait à l'accueil).
   const [resuming, setResuming] = useState(() =>
@@ -67,6 +80,28 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     navigateRef.current(roomPath(code, step));
   };
 
+  // On efface tout ce qui concerne la partie en cours : question, manche et résultats
+  const clearGame = () => {
+    setQuestion(null);
+    setReveal(null);
+    setReactionRound(null);
+    setReactionResults(null);
+  };
+
+  const updateScores = (scores: Record<string, number>) => {
+    setRoom((currentRoom) =>
+      currentRoom
+        ? {
+            ...currentRoom,
+            players: currentRoom.players.map((player) => ({
+              ...player,
+              score: scores[player.id] ?? player.score,
+            })),
+          }
+        : currentRoom,
+    );
+  };
+
   const enterRoom = (joined: JoinedRoom) => {
     const storedSession: StoredSession = {
       code: joined.room.code,
@@ -75,8 +110,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     sessionRef.current = storedSession;
     setSession(storedSession);
     setRoom(joined.room);
-    setQuestion(null);
-    setReveal(null);
+    clearGame();
     setRanking(null);
 
     if (!saveSession(storedSession)) {
@@ -86,7 +120,10 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     }
 
     if (joined.room.status === 'playing') {
-      goToRoom(storedSession.code, 'quiz');
+      goToRoom(
+        storedSession.code,
+        joined.room.settings?.game === 'reaction' ? 'reaction' : 'quiz',
+      );
     } else if (joined.room.status === 'results') {
       goToRoom(storedSession.code, 'results');
     } else {
@@ -108,7 +145,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
         sessionRef.current = null;
         setSession(null);
         setRoom(null);
-        setQuestion(null);
+        clearGame();
         navigateRef.current('/');
         const cleared = removeSavedSession();
         setError(
@@ -128,12 +165,29 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const syncClock = async (socket: NodiglooSocket) => {
+    try {
+      clockOffsetRef.current = await measureClockOffset(async () => {
+        const result: Ack<ClockPong> = await socket
+          .timeout(2_000)
+          .emitWithAck('clock:ping');
+        if (!result.ok) {
+          throw new Error(result.error.message);
+        }
+        return result.data.serverTime;
+      });
+    } catch {
+      // Sans mesure, on garde l'horloge de l'appareil : on peut jouer, c'est juste moins précis
+    }
+  };
+
   useEffect(() => {
     const socket = createNodiglooSocket();
     socketRef.current = socket;
 
     socket.on('connect', () => {
       setConnectionState('connected');
+      void syncClock(socket);
       const savedSession = sessionRef.current;
       if (savedSession) {
         void resumeSession(socket, savedSession);
@@ -146,8 +200,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
         willRetry && sessionRef.current ? 'reconnecting' : 'disconnected',
       );
       if (sessionRef.current) {
-        setQuestion(null);
-        setReveal(null);
+        clearGame();
       }
     });
     socket.on('connect_error', () => {
@@ -165,17 +218,18 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     });
     socket.on('question:revealed', (questionReveal) => {
       setReveal(questionReveal);
-      setRoom((currentRoom) =>
-        currentRoom
-          ? {
-              ...currentRoom,
-              players: currentRoom.players.map((player) => ({
-                ...player,
-                score: questionReveal.scores[player.id] ?? player.score,
-              })),
-            }
-          : currentRoom,
-      );
+      updateScores(questionReveal.scores);
+    });
+    socket.on('reaction:round:started', (round) => {
+      setReactionRound(round);
+      setReactionResults(null);
+      if (sessionRef.current) {
+        goToRoom(sessionRef.current.code, 'reaction');
+      }
+    });
+    socket.on('reaction:round:finished', (results) => {
+      setReactionResults(results);
+      updateScores(results.scores);
     });
     socket.on('game:finished', (finishedGame) => {
       setRanking(finishedGame.ranking);
@@ -209,13 +263,14 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     return socket;
   };
 
+  const serverNow = () => Date.now() + clockOffsetRef.current;
+
   const leaveRoom = () => {
     socketRef.current?.disconnect();
     sessionRef.current = null;
     setSession(null);
     setRoom(null);
-    setQuestion(null);
-    setReveal(null);
+    clearGame();
     setRanking(null);
     navigate('/');
     setError(null);
@@ -232,11 +287,14 @@ export function RoomProvider({ children }: { children: ReactNode }) {
         room,
         question,
         reveal,
+        reactionRound,
+        reactionResults,
         ranking,
         resuming,
         error,
         setError,
         getSocket,
+        serverNow,
         enterRoom,
         leaveRoom,
       }}

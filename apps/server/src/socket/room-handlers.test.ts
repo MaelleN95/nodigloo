@@ -8,6 +8,8 @@ import type {
   QuestionReveal,
   QuestionStart,
   RankingEntry,
+  ReactionRoundResults,
+  ReactionRoundStart,
   ResumeSessionPayload,
   RoomPublic,
 } from '@nodigloo/shared';
@@ -382,6 +384,42 @@ describe('room Socket.IO handlers', () => {
     expect(question.question).not.toHaveProperty('correctChoice');
   });
 
+  it('diffuse les réglages de l’hôte et les refuse à un invité', async () => {
+    const host = await connectClient();
+    const guest = await connectClient();
+    const created = requireSuccess(
+      await host.emitWithAck('room:create', { nickname: 'Alice' }),
+    );
+    await guest.emitWithAck('room:join', {
+      code: created.room.code,
+      nickname: 'Bob',
+    });
+    expect(created.room.settings).toEqual({ game: 'quiz', rounds: 5 });
+    const guestUpdated = new Promise<RoomPublic>((resolve) => {
+      guest.once('room:updated', resolve);
+    });
+
+    expect(
+      await host.emitWithAck('room:settings:update', { game: 'quiz', rounds: 3 }),
+    ).toEqual({ ok: true, data: undefined });
+    expect((await guestUpdated).settings).toEqual({ game: 'quiz', rounds: 3 });
+    expect(
+      await guest.emitWithAck('room:settings:update', { game: 'quiz', rounds: 8 }),
+    ).toMatchObject({ ok: false, error: { code: 'FORBIDDEN' } });
+    expect(
+      await host.emitWithAck('room:settings:update', {
+        game: 'memory',
+        rounds: 3,
+      } as never),
+    ).toMatchObject({ ok: false, error: { code: 'INVALID_PAYLOAD' } });
+
+    const questionStarted = new Promise<QuestionStart>((resolve) => {
+      host.once('question:started', resolve);
+    });
+    await host.emitWithAck('game:start');
+    expect((await questionStarted).totalQuestions).toBe(3);
+  });
+
   it('refuse le démarrage par un non-hôte', async () => {
     const host = await connectClient();
     const guest = await connectClient();
@@ -726,6 +764,138 @@ describe('room Socket.IO handlers', () => {
     expect(result).toMatchObject({
       ok: false,
       error: { code: 'SESSION_EXPIRED' },
+    });
+  });
+
+  describe('jeu de réaction', () => {
+    // Avec random() = 0, le vert arrive 2 s après le début de la manche
+    const startReactionGame = async (rounds: number) => {
+      const host = await connectClient();
+      const guest = await connectClient();
+      const created = requireSuccess(
+        await host.emitWithAck('room:create', { nickname: 'Alice' }),
+      );
+      const joined = requireSuccess(
+        await guest.emitWithAck('room:join', {
+          code: created.room.code,
+          nickname: 'Bob',
+        }),
+      );
+      await host.emitWithAck('room:settings:update', { game: 'reaction', rounds });
+      const hostRound = new Promise<ReactionRoundStart>((resolve) => {
+        host.once('reaction:round:started', resolve);
+      });
+      const guestRound = new Promise<ReactionRoundStart>((resolve) => {
+        guest.once('reaction:round:started', resolve);
+      });
+
+      expect(await host.emitWithAck('game:start')).toEqual({
+        ok: true, data: undefined,
+      });
+      const round = await hostRound;
+      expect(await guestRound).toEqual(round);
+
+      return { created, guest, host, joined, round };
+    };
+
+    // Les manches annulées laissent leur chronomètre dans la liste : on les saute
+    const advanceActiveTimer = (): void => {
+      let timer = quizTimers.shift();
+      while (timer?.cancelled) {
+        timer = quizTimers.shift();
+      }
+      if (!timer) {
+        throw new Error('Aucun chronomètre actif');
+      }
+      now += timer.delayMs;
+      timer.callback();
+    };
+
+    it('lance une manche de réaction au lieu d’une question de quiz', async () => {
+      const { round } = await startReactionGame(3);
+
+      expect(round).toEqual({
+        round: 1,
+        totalRounds: 3,
+        serverNow: 1000,
+        greenAt: 3000,
+      });
+    });
+
+    it('joue une partie complète et note les réactions côté serveur', async () => {
+      const { created, guest, host, joined, round } = await startReactionGame(1);
+      const roundFinished = new Promise<ReactionRoundResults>((resolve) => {
+        guest.once('reaction:round:finished', resolve);
+      });
+      now = round.greenAt + 250;
+
+      expect(
+        await host.emitWithAck('reaction:submit', {
+          round: 1, kind: 'reaction', reactionMs: 150,
+        }),
+      ).toEqual({ ok: true, data: undefined });
+      expect(
+        await guest.emitWithAck('reaction:submit', {
+          round: 1, kind: 'false-start',
+        }),
+      ).toEqual({ ok: true, data: undefined });
+
+      const hostId = created.session.playerId;
+      const guestId = joined.session.playerId;
+      expect(await roundFinished).toEqual({
+        round: 1,
+        results: [
+          { playerId: hostId, outcome: 'reaction', reactionMs: 150, points: 1000 },
+          { playerId: guestId, outcome: 'false-start', reactionMs: null, points: 0 },
+        ],
+        scores: { [hostId]: 1000, [guestId]: 0 },
+      });
+
+      const gameFinished = new Promise<{ ranking: RankingEntry[] }>((resolve) => {
+        host.once('game:finished', resolve);
+      });
+      advanceActiveTimer();
+
+      expect((await gameFinished).ranking).toEqual([
+        { playerId: hostId, nickname: 'Alice', score: 1000, rank: 1 },
+        { playerId: guestId, nickname: 'Bob', score: 0, rank: 2 },
+      ]);
+      expect(roomService.getRoom(created.room.code)?.status).toBe('results');
+    });
+
+    it('refuse un appui mal formé ou venant d’un socket hors salle', async () => {
+      const { guest } = await startReactionGame(1);
+      const stranger = await connectClient();
+
+      expect(
+        await guest.emitWithAck('reaction:submit', {
+          round: 1, kind: 'reaction', reactionMs: 'vite',
+        } as never),
+      ).toMatchObject({ ok: false, error: { code: 'INVALID_PAYLOAD' } });
+      expect(
+        await stranger.emitWithAck('reaction:submit', {
+          round: 1, kind: 'false-start',
+        }),
+      ).toMatchObject({ ok: false, error: { code: 'FORBIDDEN' } });
+    });
+
+    it('renvoie la manche en cours au joueur qui reprend sa session', async () => {
+      const { created, joined, round } = await startReactionGame(3);
+      now = 1500;
+
+      const resumedClient = await connectClient();
+      const resumedRound = new Promise<ReactionRoundStart>((resolve) => {
+        resumedClient.once('reaction:round:started', resolve);
+      });
+      requireSuccess(
+        await resumedClient.emitWithAck('session:resume', {
+          code: created.room.code,
+          playerId: joined.session.playerId,
+          reconnectToken: joined.session.reconnectToken,
+        }),
+      );
+
+      expect(await resumedRound).toEqual({ ...round, serverNow: 1500 });
     });
   });
 });

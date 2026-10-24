@@ -1,4 +1,10 @@
-import type { PlayerId, PlayerPublic, RoomPublic, RoomStatus } from '@nodigloo/shared';
+import type {
+  GameSettings,
+  PlayerId,
+  PlayerPublic,
+  RoomPublic,
+  RoomStatus,
+} from '@nodigloo/shared';
 
 // Le joueur côté serveur : il contient des infos qu'on ne doit jamais envoyer aux autres
 // (reconnectToken) ou qui ne regardent que le serveur (socketId, joinedAt, disconnectedAt).
@@ -20,6 +26,7 @@ export interface Room {
   hostId: PlayerId;
   // Map pour garder l'ordre d'arrivée et retrouver un joueur par son id
   players: Map<PlayerId, Player>;
+  settings: GameSettings;
   createdAt: number;
 }
 
@@ -37,4 +44,5 @@ export const toRoomPublic = (room: Room): RoomPublic => ({
   status: room.status,
   hostId: room.hostId,
   players: [...room.players.values()].map(toPlayerPublic),
+  settings: { ...room.settings },
 });

@@ -1,6 +1,7 @@
 import type { RoomPublic } from '@nodigloo/shared';
 import { useRoom } from '../context/RoomContext';
 import { getFallbackRanking } from '../lib/ranking';
+import { describeFinishedGame } from '../lib/results';
 
 type ResultsScreenProps = {
   room: RoomPublic;
@@ -19,9 +20,7 @@ export function ResultsScreen({ room, playerId }: ResultsScreenProps) {
     >
       <p className="eyebrow">LA PARTIE EST TERMINÉE</p>
       <h1 id="results-title">Le classement du refuge</h1>
-      <p className="description">
-        Cinq questions, quelques surprises et un joli moment partagé.
-      </p>
+      <p className="description">{describeFinishedGame(room.settings)}</p>
       <ol className="ranking-list">
         {ranking.map((entry) => {
           const isMe = entry.playerId === playerId;
