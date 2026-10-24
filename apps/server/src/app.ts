@@ -7,6 +7,7 @@ import type {
   ServerToClientEvents,
 } from '@nodigloo/shared';
 import type { Config } from './config.js';
+import type { GameDeps } from './domain/games/game-deps.js';
 import { QuizService } from './domain/games/quiz/quiz-service.js';
 import { ReactionService } from './domain/games/reaction/reaction-service.js';
 import { RoomService } from './domain/room-service.js';
@@ -19,13 +20,6 @@ export class OriginNotAllowedError extends Error {
   constructor() {
     super('Origin not allowed');
   }
-}
-
-// Horloge, hasard et chronomètres, partagés par tous les jeux. Les tests les remplacent.
-export interface GameDeps {
-  now: () => number;
-  random: () => number;
-  schedule: (callback: () => void, delayMs: number) => () => void;
 }
 
 export const createApp = (

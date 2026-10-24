@@ -17,18 +17,13 @@ import {
 import { DomainError } from '../../errors.js';
 import { getRanking } from '../../ranking.js';
 import type { Room } from '../../room.js';
+import { defaultGameDeps, type GameDeps } from '../game-deps.js';
 import { RoomService } from '../../room-service.js';
 
 export type ReactionEvent =
   | { type: 'reaction:round:started'; payload: ReactionRoundStart }
   | { type: 'reaction:round:finished'; payload: ReactionRoundResults }
   | { type: 'game:finished'; payload: { ranking: RankingEntry[] } };
-
-export interface ReactionServiceDeps {
-  now: () => number;
-  random: () => number;
-  schedule: (callback: () => void, delayMs: number) => () => void;
-}
 
 type RecordedAnswer = Pick<ReactionResult, 'outcome' | 'reactionMs'>;
 
@@ -40,15 +35,6 @@ interface ActiveGame {
   currentRound?: ReactionRoundStart;
   cancelTimer: () => void;
 }
-
-const defaultDeps: ReactionServiceDeps = {
-  now: () => Date.now(),
-  random: () => Math.random(),
-  schedule: (callback, delayMs) => {
-    const timer = setTimeout(callback, delayMs);
-    return () => clearTimeout(timer);
-  },
-};
 
 export const getReactionPoints = (reactionMs: number): number => {
   if (reactionMs <= REACTION_FULL_POINTS_MS) {
@@ -66,14 +52,14 @@ export const getReactionPoints = (reactionMs: number): number => {
 
 export class ReactionService {
   private readonly games = new Map<string, ActiveGame>();
-  private readonly deps: ReactionServiceDeps;
+  private readonly deps: GameDeps;
 
   constructor(
     private readonly roomService: RoomService,
     private readonly emit: (roomCode: string, event: ReactionEvent) => void,
-    deps: Partial<ReactionServiceDeps> = {},
+    deps: Partial<GameDeps> = {},
   ) {
-    this.deps = { ...defaultDeps, ...deps };
+    this.deps = { ...defaultGameDeps, ...deps };
   }
 
   startGame(room: Room): ReactionRoundStart {

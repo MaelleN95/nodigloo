@@ -10,6 +10,7 @@ import {
 import { DomainError } from '../../errors.js';
 import type { Room } from '../../room.js';
 import { getRanking } from '../../ranking.js';
+import { defaultGameDeps, type GameDeps } from '../game-deps.js';
 import { QUESTION_BANK, type QuizQuestion } from './question-bank.js';
 import { RoomService } from '../../room-service.js';
 
@@ -18,12 +19,6 @@ export type QuizEvent =
   | { type: 'question:revealed'; payload: QuestionReveal }
   | { type: 'game:finished'; payload: { ranking: RankingEntry[] } };
 
-export interface QuizServiceDeps {
-  now: () => number;
-  random: () => number;
-  schedule: (callback: () => void, delayMs: number) => () => void;
-}
-
 interface ActiveGame {
   questions: QuizQuestion[];
   questionIndex: number;
@@ -31,15 +26,6 @@ interface ActiveGame {
   currentQuestion?: QuestionStart;
   cancelTimer: () => void;
 }
-
-const defaultDeps: QuizServiceDeps = {
-  now: () => Date.now(),
-  random: () => Math.random(),
-  schedule: (callback, delayMs) => {
-    const timer = setTimeout(callback, delayMs);
-    return () => clearTimeout(timer);
-  },
-};
 
 const selectQuestions = (
   bank: QuizQuestion[],
@@ -61,14 +47,14 @@ const selectQuestions = (
 
 export class QuizService {
   private readonly games = new Map<string, ActiveGame>();
-  private readonly deps: QuizServiceDeps;
+  private readonly deps: GameDeps;
 
   constructor(
     private readonly roomService: RoomService,
     private readonly emit: (roomCode: string, event: QuizEvent) => void,
-    deps: Partial<QuizServiceDeps> = {},
+    deps: Partial<GameDeps> = {},
   ) {
-    this.deps = { ...defaultDeps, ...deps };
+    this.deps = { ...defaultGameDeps, ...deps };
   }
 
   startGame(room: Room): QuestionStart {
