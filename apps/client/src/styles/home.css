@@ -1,0 +1,229 @@
+.home-hero {
+  min-height: 370px;
+  padding: 48px 8%;
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  align-items: center;
+  gap: 30px;
+  background: var(--surface);
+  border-inline: 1px solid var(--line);
+  animation: arrive 600ms ease-out both;
+}
+
+.hero-copy {
+  max-width: 470px;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  color: #9db8c5;
+}
+
+.eyebrow-mark {
+  width: 7px;
+  height: 7px;
+  background: var(--amber);
+}
+
+h1,
+h2,
+h3,
+p {
+  overflow-wrap: anywhere;
+}
+
+.hero-copy h1 {
+  margin: 23px 0 16px;
+  font-size: clamp(48px, 6.5vw, 72px);
+  line-height: 1.02;
+  letter-spacing: -0.075em;
+}
+
+.hero-copy h1 span {
+  color: var(--pine);
+}
+
+.description {
+  max-width: 470px;
+  margin: 0;
+  color: #b2bec3;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.entry-panel {
+  padding: 38px 7% 48px;
+  border-inline: 1px solid var(--line);
+  background: rgba(23, 38, 48, 0.74);
+}
+
+.section-heading,
+.players-heading,
+.quiz-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.section-heading h2,
+.players-heading h2 {
+  margin: 9px 0 0;
+  font-size: clamp(24px, 3vw, 32px);
+  letter-spacing: -0.06em;
+}
+
+.step-number {
+  color: #84969f;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.entry-grid {
+  margin-top: 25px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.entry-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+}
+
+.entry-card-join {
+  background: var(--surface-raised);
+}
+
+.card-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--pine);
+  color: white;
+  font-size: 21px;
+  font-weight: 400;
+}
+
+.card-icon-join {
+  background: var(--amber-light);
+  color: #f0ca7c;
+  font-size: 17px;
+}
+
+.card-kicker {
+  margin: 18px 0 3px;
+  color: var(--muted);
+}
+
+.entry-card h3 {
+  margin: 4px 0 7px;
+  font-size: 21px;
+  letter-spacing: -0.05em;
+}
+
+.card-description {
+  min-height: 44px;
+  margin: 0 0 18px;
+  color: #b0bdc2;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.entry-card label {
+  margin: 0 0 7px;
+  color: #cad3d5;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.entry-card input {
+  width: 100%;
+  min-height: 45px;
+  margin-bottom: 15px;
+  padding: 0 12px;
+  border: 1px solid #405560;
+  border-radius: 6px;
+  outline: none;
+  background: #101d27;
+  color: var(--ink);
+  font-size: 14px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.entry-card input::placeholder {
+  color: #82949e;
+}
+
+.entry-card input:focus {
+  border-color: var(--pine);
+  box-shadow: 0 0 0 3px #2c4652;
+}
+
+.room-code-input {
+  font-family: var(--mono);
+  font-size: 17px !important;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.button {
+  min-height: 47px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border: 0;
+  border-radius: 6px;
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  transition: background 150ms ease, transform 150ms ease;
+}
+
+.button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.button:focus-visible,
+.choice-button:focus-visible,
+.wordmark:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 3px;
+}
+
+.button:disabled {
+  opacity: 0.55;
+}
+
+.button-primary {
+  background: #36596b;
+}
+
+.button-primary:hover:not(:disabled) {
+  background: #294858;
+}
+
+.button-secondary {
+  background: #9a7335;
+}
+
+.button-secondary:hover:not(:disabled) {
+  background: #805d2a;
+}
+
+.entry-card .button {
+  width: 100%;
+  margin-top: auto;
+}

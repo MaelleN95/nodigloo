@@ -1,0 +1,111 @@
+@media (max-width: 700px) {
+  .shell {
+    width: min(100% - 32px, 520px);
+  }
+
+  .topbar {
+    min-height: 70px;
+  }
+
+  .topbar-meta {
+    gap: 12px;
+  }
+
+  .phase-tag {
+    display: none;
+  }
+
+  .home-hero {
+    min-height: auto;
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding: 48px 8% 36px;
+  }
+
+  .hero-copy h1 {
+    font-size: clamp(47px, 13vw, 64px);
+  }
+
+  .entry-panel {
+    padding: 30px 5% 36px;
+  }
+
+  .entry-grid,
+  .choice-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .entry-card {
+    padding: 20px;
+  }
+
+  .game-panel {
+    margin-block: 28px;
+    padding: 28px 22px;
+  }
+
+  .game-panel .section-heading {
+    align-items: flex-start;
+  }
+
+  .room-code-block {
+    min-width: 100px;
+    padding: 9px 10px;
+  }
+
+  .room-code-block strong {
+    font-size: 18px;
+  }
+
+  .choice-button {
+    min-height: 60px;
+  }
+
+  .footer-line {
+    min-height: 54px;
+    justify-content: center;
+    flex-wrap: wrap;
+    font-size: 8px;
+  }
+
+  .error-toast {
+    top: 0;
+    right: 0;
+    left: 0;
+    width: auto;
+    border-width: 0 0 1px;
+    border-radius: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .topbar {
+    align-items: center;
+  }
+
+  .connection-pill {
+    font-size: 9px;
+  }
+
+  .game-panel .section-heading {
+    flex-direction: column;
+  }
+
+  .room-code-copy {
+    align-self: stretch;
+  }
+
+  .player-status {
+    max-width: 75px;
+    text-align: right;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
